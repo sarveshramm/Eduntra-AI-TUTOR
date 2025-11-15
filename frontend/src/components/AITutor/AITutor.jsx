@@ -458,6 +458,79 @@ const AITutor = () => {
 
   return (
     <div className="h-full flex flex-col" data-testid="ai-tutor">
+      {/* Chat History Modal */}
+      {showHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl glass-effect rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                <History className="h-6 w-6 text-blue-400" />
+                Chat History
+              </h3>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {loadingHistory ? (
+              <div className="text-center py-12">
+                <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-400">Loading history...</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                <button
+                  onClick={startNewChat}
+                  className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 rounded-lg p-4 text-left transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                      <Plus className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold">Start New Conversation</p>
+                      <p className="text-sm text-gray-200">Begin a fresh chat session</p>
+                    </div>
+                  </div>
+                </button>
+
+                {chatSessions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-500" />
+                    <p className="text-gray-400">No chat history yet</p>
+                  </div>
+                ) : (
+                  chatSessions.map((session, idx) => (
+                    <button
+                      key={session.session_id}
+                      onClick={() => loadSession(session.session_id)}
+                      className="w-full bg-white/5 hover:bg-white/10 rounded-lg p-4 text-left transition-all border border-white/10"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                          <MessageSquare className="h-5 w-5 text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium truncate">{session.preview}</p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <p className="text-xs text-gray-400">
+                              {new Date(session.timestamp).toLocaleDateString()} • {session.message_count} messages
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Avatar Section */}
       <div className="glass-effect rounded-2xl p-6 mb-6">
         <AvatarAnimation />
