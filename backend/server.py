@@ -319,20 +319,44 @@ async def analyze_career(data: dict, authorization: Optional[str] = Header(None)
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=f"career_{user_data['user_id']}",
-        system_message="You are a career counselor and job advisor."
+        system_message="You are a professional career counselor. Provide detailed, realistic career recommendations."
     ).with_model("openai", "gpt-4o")
     
-    prompt = f"""Based on interests: {interests} and skills: {skills}, recommend 5 career paths.
-    Return JSON: {{"careers": [{{"title": "", "description": "", "salary_range": "", "required_skills": [], "roadmap": []}}]}}"""
+    prompt = f"""Based on these interests: {', '.join(interests)} and skills: {', '.join(skills)}, recommend 5 suitable career paths.
+
+For each career, provide:
+- title: Career title
+- description: Brief description (2-3 sentences)
+- salary_range: Expected salary (e.g., "$50k-$80k per year" or "₹6-12 LPA")
+- required_skills: List of 4-6 key skills needed
+- roadmap: List of 5-7 specific steps to reach this career
+
+Return ONLY valid JSON in this exact format, no markdown:
+{{"careers": [{{"title": "Software Developer", "description": "Build applications and software", "salary_range": "$60k-$100k", "required_skills": ["Python", "JavaScript", "Problem Solving"], "roadmap": ["Learn programming basics", "Build portfolio projects", "Get internship"]}}]}}"""
     
     response = await chat.send_message(UserMessage(text=prompt))
     
     try:
         import json
-        career_data = json.loads(response)
+        # Clean response - remove markdown code blocks if present
+        clean_response = response.strip()
+        if clean_response.startswith('```'):
+            clean_response = clean_response.split('```')[1]
+            if clean_response.startswith('json'):
+                clean_response = clean_response[4:]
+        clean_response = clean_response.strip()
+        
+        career_data = json.loads(clean_response)
         careers = career_data.get('careers', [])
-    except:
-        careers = []
+        
+        # Ensure we have valid data
+        if not careers or len(careers) == 0:
+            raise ValueError("No careers returned")
+            
+    except Exception as e:
+        logger.error(f"Failed to parse AI response: {e}, Response: {response}")
+        # Fallback to predefined careers based on interests/skills
+        careers = generate_fallback_careers(interests, skills)
     
     profile = CareerProfile(
         user_id=user_data['user_id'],
@@ -346,6 +370,81 @@ async def analyze_career(data: dict, authorization: Optional[str] = Header(None)
     await db.career_profiles.insert_one(doc)
     
     return {"careers": careers}
+
+def generate_fallback_careers(interests, skills):
+    """Generate fallback career suggestions if AI fails"""
+    fallback_careers = []
+    
+    # Tech-related
+    if any(s.lower() in ['programming', 'coding', 'python', 'javascript', 'tech', 'computer'] for s in skills + interests):
+        fallback_careers.append({
+            "title": "Software Developer",
+            "description": "Design, develop, and maintain software applications. Work with various programming languages and frameworks to create solutions.",
+            "salary_range": "₹6-15 LPA",
+            "required_skills": ["Programming", "Problem Solving", "Algorithms", "Data Structures", "Git"],
+            "roadmap": ["Master a programming language (Python/JavaScript)", "Learn data structures and algorithms", "Build 5-10 portfolio projects", "Contribute to open source", "Apply for internships", "Prepare for technical interviews", "Land first developer role"]
+        })
+    
+    # Design-related
+    if any(s.lower() in ['design', 'creative', 'art', 'ui', 'ux'] for s in skills + interests):
+        fallback_careers.append({
+            "title": "UI/UX Designer",
+            "description": "Create user-friendly interfaces and experiences for digital products. Focus on user research, wireframing, and visual design.",
+            "salary_range": "₹4-10 LPA",
+            "required_skills": ["Figma", "Adobe XD", "User Research", "Wireframing", "Prototyping"],
+            "roadmap": ["Learn design fundamentals", "Master Figma/Adobe XD", "Study UX principles", "Build design portfolio", "Complete design challenges", "Network with designers", "Apply for design roles"]
+        })
+    
+    # Business-related
+    if any(s.lower() in ['business', 'marketing', 'management', 'strategy'] for s in skills + interests):
+        fallback_careers.append({
+            "title": "Business Analyst",
+            "description": "Analyze business processes and recommend improvements. Work with data to drive business decisions and strategy.",
+            "salary_range": "₹5-12 LPA",
+            "required_skills": ["Excel", "Data Analysis", "SQL", "Communication", "Problem Solving"],
+            "roadmap": ["Learn Excel and SQL", "Understand business fundamentals", "Study data analysis", "Work on case studies", "Get business certifications", "Build analysis portfolio", "Apply for analyst positions"]
+        })
+    
+    # Data-related
+    if any(s.lower() in ['data', 'analytics', 'statistics', 'math', 'science'] for s in skills + interests):
+        fallback_careers.append({
+            "title": "Data Analyst",
+            "description": "Collect, process, and analyze data to help organizations make informed decisions. Create visualizations and reports.",
+            "salary_range": "₹5-10 LPA",
+            "required_skills": ["Python", "SQL", "Excel", "Statistics", "Data Visualization"],
+            "roadmap": ["Learn Python and SQL", "Study statistics", "Master Excel", "Learn Tableau/Power BI", "Work on data projects", "Build analysis portfolio", "Apply for data roles"]
+        })
+    
+    # Content/Writing
+    if any(s.lower() in ['writing', 'content', 'communication', 'english'] for s in skills + interests):
+        fallback_careers.append({
+            "title": "Content Writer",
+            "description": "Create engaging written content for websites, blogs, social media, and marketing materials. Research topics and write clear, compelling copy.",
+            "salary_range": "₹3-7 LPA",
+            "required_skills": ["Writing", "SEO", "Research", "Editing", "Creativity"],
+            "roadmap": ["Improve writing skills", "Learn SEO basics", "Start a blog", "Build writing portfolio", "Join content platforms", "Network with writers", "Apply for writing positions"]
+        })
+    
+    # Ensure we have at least 3 careers
+    if len(fallback_careers) < 3:
+        fallback_careers.extend([
+            {
+                "title": "Digital Marketing Specialist",
+                "description": "Plan and execute digital marketing campaigns across various channels. Analyze metrics and optimize for better results.",
+                "salary_range": "₹4-9 LPA",
+                "required_skills": ["Social Media", "SEO", "Google Ads", "Analytics", "Content Marketing"],
+                "roadmap": ["Learn digital marketing basics", "Get Google certifications", "Practice with real campaigns", "Build case studies", "Master social media", "Network in marketing", "Apply for marketing roles"]
+            },
+            {
+                "title": "Project Coordinator",
+                "description": "Support project managers in planning, executing, and closing projects. Coordinate team activities and track project progress.",
+                "salary_range": "₹4-8 LPA",
+                "required_skills": ["Organization", "Communication", "MS Office", "Time Management", "Teamwork"],
+                "roadmap": ["Learn project management basics", "Get PMP/Agile certification", "Develop organizational skills", "Volunteer for projects", "Build coordination experience", "Network with PMs", "Apply for coordinator roles"]
+            }
+        ])
+    
+    return fallback_careers[:5]
 
 @api_router.get("/jobs")
 async def get_jobs(job_type: str = 'job', authorization: Optional[str] = Header(None)):
@@ -515,6 +614,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+@app.on_event("shutdown") 
+async def shutdown_db_client(): 
+    client.close() 
