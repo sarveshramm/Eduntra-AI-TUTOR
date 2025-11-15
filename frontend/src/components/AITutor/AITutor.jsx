@@ -14,10 +14,13 @@ const AITutor = () => {
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   const [sessionId] = useState(`session_${Date.now()}`);
   const [showInfo, setShowInfo] = useState(true);
   const scrollRef = useRef(null);
   const recognitionRef = useRef(null);
+  const utteranceRef = useRef(null);
+  const silenceTimerRef = useRef(null);
 
   // Initialize Speech Recognition
   useEffect(() => {
