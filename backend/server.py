@@ -667,6 +667,185 @@ async def update_progress(path_id: str, data: dict, authorization: Optional[str]
     
     return {"success": True}
 
+@api_router.post("/learning/generate-quiz/{path_id}/{phase}")
+async def generate_quiz(path_id: str, phase: int, authorization: Optional[str] = Header(None)):
+    user_data = await get_current_user(authorization)
+    
+    # Get learning path
+    path = await db.learning_paths.find_one(
+        {"id": path_id, "user_id": user_data['user_id']},
+        {"_id": 0}
+    )
+    
+    if not path:
+        raise HTTPException(status_code=404, detail="Learning path not found")
+    
+    # Get the specific phase
+    lessons = path.get('lessons', [])
+    phase_lesson = None
+    for lesson in lessons:
+        if lesson.get('phase') == phase:
+            phase_lesson = lesson
+            break
+    
+    if not phase_lesson:
+        raise HTTPException(status_code=404, detail="Phase not found")
+    
+    # Generate quiz with AI
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"quiz_{user_data['user_id']}_{path_id}_{phase}",
+        system_message="You are an expert educational assessment designer. Create challenging but fair quizzes to test understanding."
+    ).with_model("openai", "gpt-4o")
+    
+    topics = ", ".join(phase_lesson.get('topics', []))
+    
+    prompt = f"""Create a quiz to test mastery of Phase {phase}: {phase_lesson.get('title')}
+
+Topics covered: {topics}
+Learning objectives: {", ".join(phase_lesson.get('objectives', []))}
+
+Generate 5 multiple-choice questions that test:
+1. Understanding of core concepts
+2. Practical application
+3. Problem-solving ability
+
+For each question provide:
+- question: Clear, specific question text
+- options: Array of 4 options (A, B, C, D)
+- correct_answer: The letter of correct option (A/B/C/D)
+- explanation: Brief explanation of the correct answer
+
+Return ONLY valid JSON:
+{{
+  "title": "Phase {phase} Quiz: {phase_lesson.get('title')}",
+  "questions": [
+    {{
+      "question": "Question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_answer": "A",
+      "explanation": "Explanation here"
+    }}
+  ]
+}}"""
+    
+    response = await chat.send_message(UserMessage(text=prompt))
+    
+    try:
+        import json
+        clean_response = response.strip()
+        if clean_response.startswith('```'):
+            clean_response = clean_response.split('```')[1]
+            if clean_response.startswith('json'):
+                clean_response = clean_response[4:]
+        clean_response = clean_response.strip()
+        
+        quiz_data = json.loads(clean_response)
+        
+        # Create quiz
+        quiz = Quiz(
+            title=quiz_data.get('title', f"Phase {phase} Quiz"),
+            subject=path.get('subject'),
+            questions=quiz_data.get('questions', []),
+            created_by=user_data['user_id']
+        )
+        
+        quiz_doc = quiz.model_dump()
+        quiz_doc['created_at'] = quiz_doc['created_at'].isoformat()
+        quiz_doc['path_id'] = path_id
+        quiz_doc['phase'] = phase
+        
+        await db.quizzes.insert_one(quiz_doc)
+        
+        # Return quiz without correct answers
+        quiz_for_user = {
+            "id": quiz.id,
+            "title": quiz.title,
+            "subject": quiz.subject,
+            "phase": phase,
+            "questions": [
+                {
+                    "question": q.get('question'),
+                    "options": q.get('options')
+                }
+                for q in quiz.questions
+            ]
+        }
+        
+        return quiz_for_user
+        
+    except Exception as e:
+        logger.error(f"Failed to generate quiz: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate quiz")
+
+@api_router.post("/learning/submit-quiz/{quiz_id}")
+async def submit_quiz(quiz_id: str, data: dict, authorization: Optional[str] = Header(None)):
+    user_data = await get_current_user(authorization)
+    
+    # Get quiz
+    quiz = await db.quizzes.find_one({"id": quiz_id}, {"_id": 0})
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    
+    user_answers = data.get('answers', [])
+    
+    # Grade quiz
+    score = 0
+    results = []
+    
+    for idx, question in enumerate(quiz.get('questions', [])):
+        user_answer = user_answers[idx] if idx < len(user_answers) else None
+        correct_answer = question.get('correct_answer')
+        is_correct = user_answer == correct_answer
+        
+        if is_correct:
+            score += 1
+        
+        results.append({
+            "question": question.get('question'),
+            "user_answer": user_answer,
+            "correct_answer": correct_answer,
+            "is_correct": is_correct,
+            "explanation": question.get('explanation')
+        })
+    
+    total_questions = len(quiz.get('questions', []))
+    percentage = int((score / total_questions) * 100) if total_questions > 0 else 0
+    
+    # Save result
+    quiz_result = QuizResult(
+        user_id=user_data['user_id'],
+        quiz_id=quiz_id,
+        path_id=quiz.get('path_id'),
+        phase=quiz.get('phase'),
+        score=score,
+        total_questions=total_questions,
+        answers=results
+    )
+    
+    result_doc = quiz_result.model_dump()
+    result_doc['completed_at'] = result_doc['completed_at'].isoformat()
+    await db.quiz_results.insert_one(result_doc)
+    
+    return {
+        "score": score,
+        "total_questions": total_questions,
+        "percentage": percentage,
+        "passed": percentage >= 70,
+        "results": results
+    }
+
+@api_router.get("/learning/quiz-history/{path_id}")
+async def get_quiz_history(path_id: str, authorization: Optional[str] = Header(None)):
+    user_data = await get_current_user(authorization)
+    
+    results = await db.quiz_results.find(
+        {"user_id": user_data['user_id'], "path_id": path_id},
+        {"_id": 0}
+    ).sort("completed_at", -1).to_list(50)
+    
+    return {"results": results}
+
 @api_router.get("/learning/analytics/{path_id}")
 async def get_path_analytics(path_id: str, authorization: Optional[str] = Header(None)):
     user_data = await get_current_user(authorization)
