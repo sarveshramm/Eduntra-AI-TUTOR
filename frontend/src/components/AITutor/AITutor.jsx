@@ -15,6 +15,7 @@ const AITutor = () => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [sessionId] = useState(`session_${Date.now()}`);
+  const [showInfo, setShowInfo] = useState(true);
   const scrollRef = useRef(null);
   const recognitionRef = useRef(null);
 
