@@ -192,6 +192,74 @@ async def get_me(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=404, detail="User not found")
     return user_doc
 
+@api_router.post("/auth/forgot-password")
+async def forgot_password(data: dict):
+    email = data.get('email')
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    
+    # Check if user exists
+    user_doc = await db.users.find_one({"email": email})
+    if not user_doc:
+        # Don't reveal if email exists or not (security)
+        return {"message": "If this email is registered, you will receive a password reset link"}
+    
+    # Generate reset token (in production, use secure token and send email)
+    reset_token = str(uuid.uuid4())
+    
+    # Store reset token with expiry (1 hour)
+    await db.password_resets.insert_one({
+        "email": email,
+        "token": reset_token,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+        "used": False
+    })
+    
+    # In production, send email with reset link
+    # For demo, return the token (in production, never return this)
+    return {
+        "message": "Password reset instructions sent to your email",
+        "reset_token": reset_token  # Remove this in production
+    }
+
+@api_router.post("/auth/reset-password")
+async def reset_password(data: dict):
+    token = data.get('token')
+    new_password = data.get('new_password')
+    
+    if not token or not new_password:
+        raise HTTPException(status_code=400, detail="Token and new password are required")
+    
+    # Find valid reset token
+    reset_doc = await db.password_resets.find_one({
+        "token": token,
+        "used": False
+    })
+    
+    if not reset_doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    # Check if token expired
+    expires_at = datetime.fromisoformat(reset_doc['expires_at'])
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+    
+    # Update password
+    new_hash = pwd_context.hash(new_password)
+    await db.users.update_one(
+        {"email": reset_doc['email']},
+        {"$set": {"password_hash": new_hash}}
+    )
+    
+    # Mark token as used
+    await db.password_resets.update_one(
+        {"token": token},
+        {"$set": {"used": True}}
+    )
+    
+    return {"message": "Password reset successfully"}
+
 # ========== AI TUTOR ROUTES ==========
 
 @api_router.post("/tutor/chat")
