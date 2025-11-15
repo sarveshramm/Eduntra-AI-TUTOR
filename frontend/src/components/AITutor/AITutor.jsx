@@ -106,6 +106,43 @@ const AITutor = () => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Load chat history on mount
+  useEffect(() => {
+    loadChatSessions();
+  }, []);
+
+  const loadChatSessions = async () => {
+    try {
+      const response = await api.get('/tutor/sessions');
+      setChatSessions(response.data.sessions || []);
+    } catch (error) {
+      console.error('Failed to load chat sessions:', error);
+    }
+  };
+
+  const loadSession = async (sessionIdToLoad) => {
+    setLoadingHistory(true);
+    try {
+      const response = await api.get(`/tutor/history/${sessionIdToLoad}`);
+      setMessages(response.data.messages || []);
+      setSessionId(sessionIdToLoad);
+      setShowHistory(false);
+      toast.success('Chat history loaded!');
+    } catch (error) {
+      toast.error('Failed to load chat history');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const startNewChat = () => {
+    const newSessionId = `session_${Date.now()}`;
+    setSessionId(newSessionId);
+    setMessages([]);
+    setShowHistory(false);
+    toast.success('Started new conversation!');
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
