@@ -15,8 +15,11 @@ const AITutor = () => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
-  const [sessionId] = useState(`session_${Date.now()}`);
+  const [sessionId, setSessionId] = useState(`session_${Date.now()}`);
   const [showInfo, setShowInfo] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
+  const [chatSessions, setChatSessions] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const scrollRef = useRef(null);
   const recognitionRef = useRef(null);
   const utteranceRef = useRef(null);
