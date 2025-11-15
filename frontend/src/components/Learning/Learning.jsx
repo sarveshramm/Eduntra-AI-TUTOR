@@ -5,7 +5,8 @@ import { Label } from '../ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Progress } from '../ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { BookOpen, Plus, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { Textarea } from '../ui/textarea';
+import { BookOpen, Plus, CheckCircle, Clock, TrendingUp, Target, Award, Zap, AlertCircle, ChevronRight } from 'lucide-react';
 import api from '../../utils/api';
 import { toast } from 'sonner';
 import { saveProgressOffline } from '../../utils/offlineStorage';
@@ -15,8 +16,20 @@ const Learning = () => {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [subject, setSubject] = useState('');
-  const [skillLevel, setSkillLevel] = useState('beginner');
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [selectedPath, setSelectedPath] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  
+  // RoadmapGPT questionnaire
+  const [formData, setFormData] = useState({
+    subject: '',
+    skill_level: 'beginner',
+    final_goal: '',
+    daily_time: '1 hour',
+    timeline: '4 weeks',
+    roadmap_type: 'detailed'
+  });
 
   useEffect(() => {
     fetchLearningPaths();
@@ -37,29 +50,55 @@ const Learning = () => {
     e.preventDefault();
     setCreating(true);
     try {
-      const response = await api.post('/learning/create-path', {
-        subject,
-        skill_level: skillLevel
-      });
+      const response = await api.post('/learning/create-path', formData);
       setPaths([...paths, response.data]);
       setShowCreate(false);
-      setSubject('');
-      toast.success('Learning path created!');
+      setFormData({
+        subject: '',
+        skill_level: 'beginner',
+        final_goal: '',
+        daily_time: '1 hour',
+        timeline: '4 weeks',
+        roadmap_type: 'detailed'
+      });
+      toast.success('🎉 Roadmap created successfully!');
     } catch (error) {
-      toast.error('Failed to create learning path');
+      toast.error('Failed to create roadmap');
     } finally {
       setCreating(false);
     }
   };
 
-  const updateProgress = async (pathId, newProgress) => {
+  const updateProgress = async (pathId, phaseIndex) => {
+    const path = paths.find(p => p.id === pathId);
+    const totalPhases = path.lessons?.length || 1;
+    const newProgress = Math.min(100, ((phaseIndex + 1) / totalPhases) * 100);
+    const completedPhases = Array.from({length: phaseIndex + 1}, (_, i) => i + 1);
+    
     try {
-      await api.put(`/learning/progress/${pathId}`, { progress: newProgress });
+      await api.put(`/learning/progress/${pathId}`, { 
+        progress: newProgress,
+        completed_phases: completedPhases
+      });
       await saveProgressOffline(pathId, newProgress);
-      setPaths(paths.map(p => p.id === pathId ? { ...p, progress: newProgress } : p));
-      toast.success('Progress updated!');
+      setPaths(paths.map(p => p.id === pathId ? { ...p, progress: newProgress, completed_phases: completedPhases } : p));
+      toast.success('✅ Progress updated!');
     } catch (error) {
       toast.error('Failed to update progress');
+    }
+  };
+
+  const viewAnalytics = async (path) => {
+    setSelectedPath(path);
+    setLoadingAnalytics(true);
+    setShowAnalytics(true);
+    try {
+      const response = await api.get(`/learning/analytics/${path.id}`);
+      setAnalytics(response.data);
+    } catch (error) {
+      toast.error('Failed to load analytics');
+    } finally {
+      setLoadingAnalytics(false);
     }
   };
 
@@ -68,7 +107,7 @@ const Learning = () => {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Loading your learning paths...</p>
+          <p className="text-gray-400">Loading your roadmaps...</p>
         </div>
       </div>
     );
@@ -79,8 +118,8 @@ const Learning = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2" style={{fontFamily: 'Space Grotesk'}}>My Learning Paths</h1>
-          <p className="text-gray-400">Personalized learning journeys tailored for you</p>
+          <h1 className="text-4xl font-bold text-white mb-2" style={{fontFamily: 'Space Grotesk'}}>🗺️ Learning Roadmaps</h1>
+          <p className="text-gray-400">AI-powered personalized learning paths to mastery</p>
         </div>
         <Button
           onClick={() => setShowCreate(true)}
@@ -88,51 +127,112 @@ const Learning = () => {
           data-testid="create-path-btn"
         >
           <Plus className="h-5 w-5 mr-2" />
-          New Path
+          Create Roadmap
         </Button>
       </div>
 
-      {/* Create Path Modal */}
+      {/* Create Roadmap Modal - RoadmapGPT Style */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" data-testid="create-modal">
-          <Card className="w-full max-w-md glass-effect">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto" data-testid="create-modal">
+          <Card className="w-full max-w-2xl glass-effect my-8">
             <CardHeader>
-              <CardTitle className="text-white">Create Learning Path</CardTitle>
-              <CardDescription className="text-gray-400">AI will generate a personalized curriculum for you</CardDescription>
+              <CardTitle className="text-white text-2xl">🎯 Create Your Custom Roadmap</CardTitle>
+              <CardDescription className="text-gray-400">Answer these questions to get a personalized learning path</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={createLearningPath} className="space-y-4">
+              <form onSubmit={createLearningPath} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="subject" className="text-gray-200">Subject</Label>
+                  <Label htmlFor="subject" className="text-gray-200 text-base">1️⃣ What topic do you want a roadmap for?</Label>
                   <Input
                     id="subject"
-                    placeholder="e.g., Python Programming, Mathematics, Physics"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="e.g., Python Programming, Web Development, Data Science"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({...formData, subject: e.target.value})}
                     required
-                    className="bg-white/5 border-white/10 text-white"
+                    className="bg-white/5 border-white/10 text-white text-base p-3"
                     data-testid="subject-input"
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="skill-level" className="text-gray-200">Skill Level</Label>
-                  <Select value={skillLevel} onValueChange={setSkillLevel}>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="skill-level-select">
+                  <Label htmlFor="skill-level" className="text-gray-200 text-base">2️⃣ What is your current level?</Label>
+                  <Select value={formData.skill_level} onValueChange={(val) => setFormData({...formData, skill_level: val})}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white p-3" data-testid="skill-level-select">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="beginner">Beginner</SelectItem>
-                      <SelectItem value="intermediate">Intermediate</SelectItem>
-                      <SelectItem value="advanced">Advanced</SelectItem>
+                      <SelectItem value="beginner">🌱 Beginner - Just starting out</SelectItem>
+                      <SelectItem value="intermediate">📈 Intermediate - Some experience</SelectItem>
+                      <SelectItem value="advanced">🚀 Advanced - Strong foundation</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex gap-2">
+
+                <div className="space-y-2">
+                  <Label htmlFor="final_goal" className="text-gray-200 text-base">3️⃣ What is your final goal?</Label>
+                  <Textarea
+                    id="final_goal"
+                    placeholder="e.g., Get a job as a developer, Build my own projects, Pass certification exam"
+                    value={formData.final_goal}
+                    onChange={(e) => setFormData({...formData, final_goal: e.target.value})}
+                    required
+                    className="bg-white/5 border-white/10 text-white text-base p-3"
+                    data-testid="goal-input"
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="daily_time" className="text-gray-200 text-base">4️⃣ Daily study time?</Label>
+                    <Select value={formData.daily_time} onValueChange={(val) => setFormData({...formData, daily_time: val})}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white p-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30 minutes">⏰ 30 minutes</SelectItem>
+                        <SelectItem value="1 hour">⏰ 1 hour</SelectItem>
+                        <SelectItem value="2 hours">⏰ 2 hours</SelectItem>
+                        <SelectItem value="3+ hours">⏰ 3+ hours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="timeline" className="text-gray-200 text-base">5️⃣ Timeline?</Label>
+                    <Select value={formData.timeline} onValueChange={(val) => setFormData({...formData, timeline: val})}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white p-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2 weeks">📅 2 weeks</SelectItem>
+                        <SelectItem value="4 weeks">📅 4 weeks (Recommended)</SelectItem>
+                        <SelectItem value="8 weeks">📅 8 weeks</SelectItem>
+                        <SelectItem value="12 weeks">📅 12 weeks</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="roadmap_type" className="text-gray-200 text-base">6️⃣ Roadmap detail level?</Label>
+                  <Select value={formData.roadmap_type} onValueChange={(val) => setFormData({...formData, roadmap_type: val})}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white p-3">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic">📝 Basic - Essential concepts only</SelectItem>
+                      <SelectItem value="detailed">📚 Detailed - Comprehensive with projects (Recommended)</SelectItem>
+                      <SelectItem value="advanced">🎓 Advanced - Expert-level deep dive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-3 pt-4">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowCreate(false)}
-                    className="flex-1"
+                    className="flex-1 border-white/20"
                     data-testid="cancel-btn"
                   >
                     Cancel
@@ -140,13 +240,123 @@ const Learning = () => {
                   <Button
                     type="submit"
                     disabled={creating}
-                    className="flex-1 bg-gradient-to-r from-green-500 to-blue-500"
+                    className="flex-1 bg-gradient-to-r from-green-500 to-blue-500 text-base py-6"
                     data-testid="submit-path-btn"
                   >
-                    {creating ? 'Creating...' : 'Create'}
+                    {creating ? (
+                      <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> Generating...</>
+                    ) : (
+                      <>🚀 Generate My Roadmap</>
+                    )}
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Analytics Modal */}
+      {showAnalytics && selectedPath && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <Card className="w-full max-w-4xl glass-effect my-8">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-white text-2xl mb-2">📊 {selectedPath.subject} - Analytics</CardTitle>
+                  <CardDescription className="text-gray-400">Detailed progress and performance metrics</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowAnalytics(false)}
+                  className="text-white"
+                >
+                  ✕
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingAnalytics ? (
+                <div className="text-center py-12">
+                  <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-gray-400">Loading analytics...</p>
+                </div>
+              ) : analytics && (
+                <div className="space-y-6">
+                  {/* Progress Overview */}
+                  <div className="grid md:grid-cols-4 gap-4">
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="h-5 w-5 text-blue-400" />
+                        <span className="text-blue-400 text-sm font-semibold">Progress</span>
+                      </div>
+                      <div className="text-3xl font-bold text-white">{analytics.progress?.percentage || 0}%</div>
+                    </div>
+                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                        <span className="text-green-400 text-sm font-semibold">Completed</span>
+                      </div>
+                      <div className="text-3xl font-bold text-white">{analytics.progress?.completed_phases || 0}/{analytics.progress?.total_phases || 0}</div>
+                    </div>
+                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Clock className="h-5 w-5 text-purple-400" />
+                        <span className="text-purple-400 text-sm font-semibold">Time Spent</span>
+                      </div>
+                      <div className="text-3xl font-bold text-white">{analytics.time?.completed_hours || 0}h</div>
+                    </div>
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Zap className="h-5 w-5 text-yellow-400" />
+                        <span className="text-yellow-400 text-sm font-semibold">Streak</span>
+                      </div>
+                      <div className="text-3xl font-bold text-white">{analytics.streak?.current_streak || 0} days</div>
+                    </div>
+                  </div>
+
+                  {/* Phase Progress */}
+                  <div>
+                    <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-blue-400" />
+                      Phase Completion
+                    </h4>
+                    <div className="space-y-2">
+                      {analytics.phases?.map((phase, idx) => (
+                        <div key={idx} className="bg-white/5 rounded-lg p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              phase.completed ? 'bg-green-500' : 'bg-gray-600'
+                            }`}>
+                              {phase.completed ? <CheckCircle className="h-5 w-5 text-white" /> : <span className="text-white text-sm">{phase.phase}</span>}
+                            </div>
+                            <span className="text-white font-medium">{phase.title}</span>
+                          </div>
+                          <span className="text-gray-400 text-sm">{phase.duration_minutes}min</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Milestones */}
+                  <div>
+                    <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                      <Award className="h-5 w-5 text-yellow-400" />
+                      Milestones Achieved
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {analytics.milestones && Object.entries(analytics.milestones).map(([key, achieved]) => (
+                        <div key={key} className={`rounded-lg p-3 text-center ${
+                          achieved ? 'bg-green-500/20 border border-green-500/30' : 'bg-gray-500/10 border border-gray-500/20'
+                        }`}>
+                          <div className="text-2xl mb-1">{achieved ? '🏆' : '🔒'}</div>
+                          <div className="text-xs text-gray-300">{key.replace('_', ' ')}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -161,7 +371,7 @@ const Learning = () => {
                 <BookOpen className="h-6 w-6 text-green-400" />
               </div>
               <div>
-                <p className="text-gray-400 text-sm">Active Paths</p>
+                <p className="text-gray-400 text-sm">Active Roadmaps</p>
                 <p className="text-3xl font-bold text-white">{paths.length}</p>
               </div>
             </div>
@@ -177,7 +387,7 @@ const Learning = () => {
               <div>
                 <p className="text-gray-400 text-sm">Avg Progress</p>
                 <p className="text-3xl font-bold text-white">
-                  {paths.length > 0 ? Math.round(paths.reduce((acc, p) => acc + p.progress, 0) / paths.length) : 0}%
+                  {paths.length > 0 ? Math.round(paths.reduce((acc, p) => acc + (p.progress || 0), 0) / paths.length) : 0}%
                 </p>
               </div>
             </div>
@@ -193,7 +403,7 @@ const Learning = () => {
               <div>
                 <p className="text-gray-400 text-sm">Completed</p>
                 <p className="text-3xl font-bold text-white">
-                  {paths.filter(p => p.progress >= 100).length}
+                  {paths.filter(p => (p.progress || 0) >= 100).length}
                 </p>
               </div>
             </div>
@@ -206,15 +416,15 @@ const Learning = () => {
         <Card className="glass-effect">
           <CardContent className="py-20 text-center">
             <BookOpen className="h-20 w-20 mx-auto mb-6 text-gray-400" />
-            <h3 className="text-2xl font-bold text-white mb-2">No Learning Paths Yet</h3>
-            <p className="text-gray-400 mb-6">Create your first personalized learning path to get started!</p>
+            <h3 className="text-2xl font-bold text-white mb-2">No Roadmaps Yet</h3>
+            <p className="text-gray-400 mb-6">Create your first AI-powered learning roadmap to achieve your goals!</p>
             <Button
               onClick={() => setShowCreate(true)}
               className="bg-gradient-to-r from-green-500 to-blue-500"
               data-testid="empty-create-btn"
             >
               <Plus className="h-5 w-5 mr-2" />
-              Create First Path
+              Create First Roadmap
             </Button>
           </CardContent>
         </Card>
@@ -224,101 +434,199 @@ const Learning = () => {
             <Card key={path.id} className="glass-effect" data-testid={`path-${index}`}>
               <CardHeader>
                 <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <CardTitle className="text-white text-2xl mb-1">{path.subject}</CardTitle>
-                    <CardDescription className="text-gray-400">
-                      {path.lessons?.length || 0} lessons • Estimated 4 weeks
-                    </CardDescription>
+                  <div className="flex-1">
+                    <CardTitle className="text-white text-2xl mb-2">{path.subject}</CardTitle>
+                    <div className="flex flex-wrap gap-3 text-sm text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <Target className="h-4 w-4" />
+                        {path.skill_level}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {path.timeline}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <BookOpen className="h-4 w-4" />
+                        {path.lessons?.length || 0} phases
+                      </span>
+                    </div>
+                    {path.final_goal && (
+                      <p className="text-gray-400 text-sm mt-2">🎯 Goal: {path.final_goal}</p>
+                    )}
                   </div>
                   <div className="text-right">
-                    <div className="text-3xl font-bold text-green-400">{path.progress}%</div>
+                    <div className="text-3xl font-bold text-green-400">{path.progress || 0}%</div>
                     <div className="text-xs text-gray-400">Complete</div>
                   </div>
                 </div>
-                <Progress value={path.progress} className="h-2" />
+                <Progress value={path.progress || 0} className="h-2" />
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Roadmap Timeline */}
-                <div>
-                  <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-blue-400" />
-                    Learning Roadmap
-                  </h4>
-                  <div className="space-y-3">
-                    {path.lessons && path.lessons.map((lesson, lessonIdx) => {
-                      const isCompleted = (lessonIdx + 1) * (100 / path.lessons.length) <= path.progress;
-                      return (
-                        <div
-                          key={lessonIdx}
-                          className={`bg-white/5 rounded-lg p-4 border-l-4 transition-all ${
-                            isCompleted ? 'border-green-500' : 'border-gray-600'
-                          }`}
-                          data-testid={`lesson-${index}-${lessonIdx}`}
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-start gap-3 flex-1">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                isCompleted ? 'bg-green-500' : 'bg-gray-600'
-                              }`}>
-                                {isCompleted ? (
-                                  <CheckCircle className="h-5 w-5 text-white" />
-                                ) : (
-                                  <span className="text-white text-sm font-bold">{lessonIdx + 1}</span>
-                                )}
-                              </div>
-                              <div className="flex-1">
-                                <h5 className="text-white font-semibold">{lesson.title}</h5>
-                                <p className="text-gray-400 text-sm mt-1">{lesson.description}</p>
-                                
-                                {/* Topics */}
-                                {lesson.topics && lesson.topics.length > 0 && (
-                                  <div className="mt-2 flex flex-wrap gap-2">
-                                    {lesson.topics.slice(0, 3).map((topic, topicIdx) => (
-                                      <span key={topicIdx} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-md">
-                                        {topic}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right ml-4">
-                              <div className="text-xs text-gray-400">{lesson.week || `Week ${Math.ceil((lessonIdx + 1) / 2)}`}</div>
-                              <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
-                                <Clock className="h-3 w-3" />
-                                {lesson.duration_minutes || 45}min
-                              </div>
-                            </div>
+              <CardContent className="space-y-6">
+                {/* Roadmap Phases */}
+                <div className="space-y-3">
+                  {path.lessons && path.lessons.map((lesson, lessonIdx) => {
+                    const isCompleted = path.completed_phases?.includes(lesson.phase) || false;
+                    const isCurrent = !isCompleted && lessonIdx === (path.completed_phases?.length || 0);
+                    
+                    return (
+                      <div
+                        key={lessonIdx}
+                        className={`bg-white/5 rounded-xl p-5 border-l-4 transition-all ${
+                          isCompleted ? 'border-green-500' : isCurrent ? 'border-blue-500' : 'border-gray-600'
+                        }`}
+                      >
+                        <div className="flex items-start gap-4 mb-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            isCompleted ? 'bg-green-500' : isCurrent ? 'bg-blue-500' : 'bg-gray-600'
+                          }`}>
+                            {isCompleted ? (
+                              <CheckCircle className="h-6 w-6 text-white" />
+                            ) : (
+                              <span className="text-white font-bold">Phase {lesson.phase}</span>
+                            )}
                           </div>
-                          
-                          {/* Practice Activity */}
-                          {lesson.practice && (
-                            <div className="mt-3 bg-purple-500/10 border border-purple-500/20 rounded-md p-2">
-                              <p className="text-xs text-purple-300">
-                                <strong>Practice:</strong> {lesson.practice}
-                              </p>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="text-white font-bold text-lg">{lesson.title}</h5>
+                              <span className="text-gray-400 text-sm">{lesson.duration}</span>
                             </div>
-                          )}
+                            <p className="text-gray-400 text-sm mb-3">{lesson.description}</p>
+                            
+                            {/* Objectives */}
+                            {lesson.objectives && (
+                              <div className="mb-3">
+                                <p className="text-xs text-gray-500 mb-1">📋 OBJECTIVES:</p>
+                                <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
+                                  {lesson.objectives.slice(0, 3).map((obj, i) => (
+                                    <li key={i}>{obj}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {/* Topics */}
+                            {lesson.topics && (
+                              <div className="mb-3">
+                                <p className="text-xs text-gray-500 mb-2">📚 KEY TOPICS:</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {lesson.topics.map((topic, i) => (
+                                    <span key={i} className="text-xs bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full">
+                                      {topic}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Practice */}
+                            {lesson.practice && (
+                              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 mb-3">
+                                <p className="text-xs text-purple-400 mb-1">💪 PRACTICE:</p>
+                                <p className="text-sm text-purple-300">{lesson.practice}</p>
+                              </div>
+                            )}
+                            
+                            {/* Resources & Tools */}
+                            <div className="grid md:grid-cols-2 gap-3 mb-3">
+                              {lesson.resources && (
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">🔗 RESOURCES:</p>
+                                  <ul className="text-xs text-gray-400 space-y-1">
+                                    {lesson.resources.slice(0, 3).map((res, i) => (
+                                      <li key={i}>• {res}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {lesson.tools && (
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">🛠️ TOOLS:</p>
+                                  <ul className="text-xs text-gray-400 space-y-1">
+                                    {lesson.tools.slice(0, 3).map((tool, i) => (
+                                      <li key={i}>• {tool}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Common Mistakes */}
+                            {lesson.common_mistakes && (
+                              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-3">
+                                <p className="text-xs text-red-400 mb-1">⚠️ COMMON MISTAKES:</p>
+                                <ul className="text-xs text-red-300 space-y-1">
+                                  {lesson.common_mistakes.slice(0, 2).map((mistake, i) => (
+                                    <li key={i}>• {mistake}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {/* Success Metrics */}
+                            {lesson.success_metrics && (
+                              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                                <p className="text-xs text-green-400 mb-1">✅ SUCCESS METRICS:</p>
+                                <ul className="text-xs text-green-300 space-y-1">
+                                  {lesson.success_metrics.slice(0, 2).map((metric, i) => (
+                                    <li key={i}>• {metric}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                        
+                        {!isCompleted && (
+                          <Button
+                            onClick={() => updateProgress(path.id, lessonIdx)}
+                            className="w-full mt-3 bg-gradient-to-r from-green-500 to-blue-500"
+                            data-testid={`complete-phase-${index}-${lessonIdx}`}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Mark Phase {lesson.phase} Complete
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
+                {/* Final Checklist */}
+                {path.final_checklist && path.final_checklist.length > 0 && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-5">
+                    <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+                      <Award className="h-5 w-5 text-yellow-400" />
+                      🏆 Final Mastery Checklist
+                    </h4>
+                    <ul className="space-y-2">
+                      {path.final_checklist.map((item, i) => (
+                        <li key={i} className="text-gray-300 text-sm">{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Next Steps */}
+                {path.next_steps && path.next_steps.length > 0 && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-5">
+                    <h4 className="text-white font-bold mb-3 flex items-center gap-2">
+                      <ChevronRight className="h-5 w-5 text-blue-400" />
+                      🚀 What's Next?
+                    </h4>
+                    <ul className="space-y-2">
+                      {path.next_steps.map((step, i) => (
+                        <li key={i} className="text-gray-300 text-sm">• {step}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-4">
+                <div className="flex gap-3 pt-4">
                   <Button
-                    onClick={() => updateProgress(path.id, Math.min(100, path.progress + 10))}
-                    className="flex-1 bg-gradient-to-r from-green-500 to-blue-500"
-                    data-testid={`progress-btn-${index}`}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Mark Lesson Complete
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-white/10 text-white"
-                    data-testid={`view-btn-${index}`}
+                    onClick={() => viewAnalytics(path)}
+                    className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500"
+                    data-testid={`analytics-btn-${index}`}
                   >
                     <TrendingUp className="h-4 w-4 mr-2" />
                     View Analytics
