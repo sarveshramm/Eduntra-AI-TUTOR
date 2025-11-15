@@ -224,9 +224,74 @@ const AITutor = () => {
       window.speechSynthesis.cancel();
       
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.95;
-      utterance.pitch = 1;
+      
+      // Configure for natural female voice
+      utterance.rate = 0.9;  // Slightly slower for clarity
+      utterance.pitch = 1.2; // Higher pitch for female voice
       utterance.volume = 1;
+      
+      // Try to select a female voice
+      const voices = window.speechSynthesis.getVoices();
+      
+      // Detect language from text (simple heuristic)
+      const isHindi = /[\u0900-\u097F]/.test(text);
+      const isSpanish = /[áéíóúñ¿¡]/i.test(text);
+      const isFrench = /[àâäéèêëïîôùûü]/i.test(text);
+      const isChinese = /[\u4e00-\u9fff]/.test(text);
+      const isArabic = /[\u0600-\u06FF]/.test(text);
+      
+      // Select appropriate female voice based on language
+      let selectedVoice = null;
+      
+      if (isHindi) {
+        selectedVoice = voices.find(v => 
+          (v.lang.includes('hi') || v.lang.includes('IN')) && v.name.toLowerCase().includes('female')
+        ) || voices.find(v => v.lang.includes('hi') || v.lang.includes('IN'));
+      } else if (isSpanish) {
+        selectedVoice = voices.find(v => 
+          v.lang.includes('es') && v.name.toLowerCase().includes('female')
+        ) || voices.find(v => v.lang.includes('es'));
+      } else if (isFrench) {
+        selectedVoice = voices.find(v => 
+          v.lang.includes('fr') && v.name.toLowerCase().includes('female')
+        ) || voices.find(v => v.lang.includes('fr'));
+      } else if (isChinese) {
+        selectedVoice = voices.find(v => 
+          v.lang.includes('zh') && v.name.toLowerCase().includes('female')
+        ) || voices.find(v => v.lang.includes('zh'));
+      } else if (isArabic) {
+        selectedVoice = voices.find(v => 
+          v.lang.includes('ar') && v.name.toLowerCase().includes('female')
+        ) || voices.find(v => v.lang.includes('ar'));
+      } else {
+        // Default to English female voice
+        selectedVoice = voices.find(v => 
+          v.lang.includes('en') && (
+            v.name.toLowerCase().includes('female') || 
+            v.name.toLowerCase().includes('samantha') ||
+            v.name.toLowerCase().includes('victoria') ||
+            v.name.toLowerCase().includes('karen') ||
+            v.name.toLowerCase().includes('serena') ||
+            v.name.toLowerCase().includes('zira')
+          )
+        ) || voices.find(v => v.lang.includes('en-US') && v.name.includes('Female'));
+      }
+      
+      // Fallback: Find any female voice
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => 
+          v.name.toLowerCase().includes('female') || 
+          v.name.toLowerCase().includes('woman') ||
+          !v.name.toLowerCase().includes('male')
+        );
+      }
+      
+      // Set the voice if found
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        utterance.lang = selectedVoice.lang;
+      }
+      
       utteranceRef.current = utterance;
       
       utterance.onstart = () => {
