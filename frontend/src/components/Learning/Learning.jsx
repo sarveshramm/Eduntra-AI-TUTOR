@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Progress } from '../ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
-import { BookOpen, Plus, CheckCircle, Clock, TrendingUp, Target, Award, Zap, AlertCircle, ChevronRight } from 'lucide-react';
+import { BookOpen, Plus, CheckCircle, Clock, TrendingUp, Target, Award, Zap, AlertCircle, ChevronRight, Brain } from 'lucide-react';
+import Quiz from '../Quiz/Quiz';
 import api from '../../utils/api';
 import { toast } from 'sonner';
 import { saveProgressOffline } from '../../utils/offlineStorage';
