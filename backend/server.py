@@ -301,27 +301,85 @@ async def create_learning_path(data: dict, authorization: Optional[str] = Header
     user_data = await get_current_user(authorization)
     subject = data.get('subject')
     skill_level = data.get('skill_level', 'beginner')
+    final_goal = data.get('final_goal', 'Master the fundamentals')
+    daily_time = data.get('daily_time', '1 hour')
+    timeline = data.get('timeline', '4 weeks')
+    roadmap_type = data.get('roadmap_type', 'detailed')
     
-    # Generate personalized learning path with AI
+    # Generate RoadmapGPT-style comprehensive roadmap
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
-        session_id=f"learning_{user_data['user_id']}",
-        system_message="You are an expert curriculum designer specializing in personalized learning paths."
+        session_id=f"roadmap_{user_data['user_id']}",
+        system_message="""You are RoadmapGPT, an elite expert in designing structured, professional, customized roadmaps for ANY topic.
+You think clearly, organize information perfectly, and produce actionable, step-by-step learning paths.
+
+Your outputs must be:
+- Clear and structured
+- Beginner-friendly yet comprehensive
+- Detailed with time estimates
+- Highly practical with real projects
+- Motivating and achievable
+
+You MUST respond as a world-class expert teacher."""
     ).with_model("openai", "gpt-4o")
     
-    prompt = f"""Create a comprehensive learning roadmap for {subject} at {skill_level} level.
+    detail_level = "deeply detailed with advanced concepts, multiple projects, and expert-level resources" if roadmap_type == 'advanced' else "well-structured with essential concepts and practical projects"
+    
+    prompt = f"""Create a COMPREHENSIVE {detail_level} roadmap for: {subject}
 
-Generate 8-10 progressive lessons with:
-- title: Lesson name
-- description: What student will learn (2-3 sentences)
-- duration_minutes: Realistic time needed (30-90 minutes)
-- week: Which week to complete (Week 1, Week 2, etc.)
-- topics: 3-5 specific topics covered
-- resources: 2-3 learning resources or tools
-- practice: Hands-on practice activity
+USER PROFILE:
+- Current Level: {skill_level}
+- Final Goal: {final_goal}
+- Daily Study Time: {daily_time}
+- Timeline: {timeline}
 
-Return ONLY valid JSON, no markdown:
-{{"lessons": [{{"title": "Introduction to {subject}", "description": "Learn the basics", "duration_minutes": 45, "week": "Week 1", "topics": ["Topic 1", "Topic 2"], "resources": ["Resource 1"], "practice": "Build a simple project"}}]}}"""
+Create a professional roadmap with phases. For EACH phase include:
+
+1. Phase name and duration
+2. Clear learning objectives
+3. Topics to master (3-5 topics)
+4. Detailed description of what they'll learn
+5. Practical exercises/mini-projects
+6. Recommended tools, resources, websites, or books
+7. Common mistakes to avoid
+8. Success metrics (how to know you've mastered this phase)
+
+Return ONLY valid JSON (no markdown):
+{{
+  "overview": {{
+    "total_duration": "{timeline}",
+    "total_phases": 4,
+    "estimated_hours": 60,
+    "difficulty": "{skill_level}"
+  }},
+  "lessons": [
+    {{
+      "phase": 1,
+      "title": "Foundation & Basics",
+      "duration": "Week 1",
+      "objectives": ["Master fundamental concepts", "Build first project"],
+      "topics": ["Core concept 1", "Core concept 2", "Core concept 3"],
+      "description": "Detailed description of what you'll learn",
+      "practice": "Build a beginner project",
+      "resources": ["Resource 1", "Resource 2"],
+      "tools": ["Tool 1", "Tool 2"],
+      "common_mistakes": ["Mistake 1", "Mistake 2"],
+      "success_metrics": ["Can do X", "Understand Y"],
+      "duration_minutes": 300
+    }}
+  ],
+  "final_checklist": [
+    "Skill checkpoint 1",
+    "Skill checkpoint 2",
+    "Can build X from scratch"
+  ],
+  "next_steps": [
+    "Advanced topic 1",
+    "Advanced topic 2"
+  ]
+}}
+
+Make it {detail_level} and perfectly suited for {skill_level} level."""
     
     response = await chat.send_message(UserMessage(text=prompt))
     
@@ -335,16 +393,18 @@ Return ONLY valid JSON, no markdown:
                 clean_response = clean_response[4:]
         clean_response = clean_response.strip()
         
-        lessons_data = json.loads(clean_response)
-        lessons = lessons_data.get('lessons', [])
+        roadmap_data = json.loads(clean_response)
+        lessons = roadmap_data.get('lessons', [])
+        overview = roadmap_data.get('overview', {})
+        final_checklist = roadmap_data.get('final_checklist', [])
+        next_steps = roadmap_data.get('next_steps', [])
         
         if not lessons or len(lessons) == 0:
             raise ValueError("No lessons returned")
             
     except Exception as e:
-        logger.error(f"Failed to parse learning path: {e}")
-        # Generate fallback lessons
-        lessons = generate_fallback_lessons(subject, skill_level)
+        logger.error(f"Failed to parse roadmap: {e}")
+        lessons, overview, final_checklist, next_steps = generate_fallback_roadmap(subject, skill_level, timeline)
     
     learning_path = LearningPath(
         user_id=user_data['user_id'],
@@ -352,11 +412,20 @@ Return ONLY valid JSON, no markdown:
         lessons=lessons
     )
     
+    # Add metadata
     doc = learning_path.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
+    doc['overview'] = overview
+    doc['final_checklist'] = final_checklist
+    doc['next_steps'] = next_steps
+    doc['skill_level'] = skill_level
+    doc['final_goal'] = final_goal
+    doc['daily_time'] = daily_time
+    doc['timeline'] = timeline
+    
     await db.learning_paths.insert_one(doc)
     
-    return learning_path.model_dump()
+    return doc
 
 def generate_fallback_lessons(subject, skill_level):
     """Generate fallback lessons if AI fails"""
