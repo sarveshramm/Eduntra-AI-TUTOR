@@ -125,6 +125,17 @@ const Learning = () => {
 
   return (
     <div className="space-y-6" data-testid="learning-page">
+      {/* Quiz Modal */}
+      {showQuiz && (
+        <Quiz
+          pathId={quizData.pathId}
+          phase={quizData.phase}
+          phaseTitle={quizData.phaseTitle}
+          onComplete={handleQuizComplete}
+          onClose={() => setShowQuiz(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
