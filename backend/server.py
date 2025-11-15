@@ -604,13 +604,90 @@ async def get_my_paths(authorization: Optional[str] = Header(None)):
 async def update_progress(path_id: str, data: dict, authorization: Optional[str] = Header(None)):
     user_data = await get_current_user(authorization)
     progress = data.get('progress', 0)
+    completed_phases = data.get('completed_phases', [])
     
     await db.learning_paths.update_one(
         {"id": path_id, "user_id": user_data['user_id']},
-        {"$set": {"progress": progress}}
+        {
+            "$set": {
+                "progress": progress,
+                "completed_phases": completed_phases,
+                "last_updated": datetime.now(timezone.utc).isoformat()
+            }
+        }
     )
     
     return {"success": True}
+
+@api_router.get("/learning/analytics/{path_id}")
+async def get_path_analytics(path_id: str, authorization: Optional[str] = Header(None)):
+    user_data = await get_current_user(authorization)
+    
+    path = await db.learning_paths.find_one(
+        {"id": path_id, "user_id": user_data['user_id']},
+        {"_id": 0}
+    )
+    
+    if not path:
+        raise HTTPException(status_code=404, detail="Learning path not found")
+    
+    # Calculate analytics
+    total_lessons = len(path.get('lessons', []))
+    completed_phases = path.get('completed_phases', [])
+    progress = path.get('progress', 0)
+    
+    # Time analytics
+    total_minutes = sum(lesson.get('duration_minutes', 0) for lesson in path.get('lessons', []))
+    completed_minutes = int((progress / 100) * total_minutes)
+    remaining_minutes = total_minutes - completed_minutes
+    
+    # Phase completion
+    phase_stats = []
+    for lesson in path.get('lessons', []):
+        phase = lesson.get('phase', 1)
+        phase_stats.append({
+            "phase": phase,
+            "title": lesson.get('title', ''),
+            "completed": phase in completed_phases,
+            "duration_minutes": lesson.get('duration_minutes', 0)
+        })
+    
+    # Learning streak (mock for now)
+    from datetime import timedelta
+    created_date = datetime.fromisoformat(path.get('created_at', datetime.now(timezone.utc).isoformat()))
+    days_since_start = (datetime.now(timezone.utc) - created_date).days
+    
+    analytics = {
+        "overview": path.get('overview', {}),
+        "progress": {
+            "percentage": progress,
+            "completed_phases": len(completed_phases),
+            "total_phases": total_lessons,
+            "completed_lessons": len(completed_phases),
+            "total_lessons": total_lessons
+        },
+        "time": {
+            "total_hours": round(total_minutes / 60, 1),
+            "completed_hours": round(completed_minutes / 60, 1),
+            "remaining_hours": round(remaining_minutes / 60, 1),
+            "estimated_completion": path.get('timeline', '4 weeks')
+        },
+        "phases": phase_stats,
+        "streak": {
+            "current_streak": min(days_since_start, 7),
+            "total_study_days": days_since_start,
+            "consistency_score": min(100, int((days_since_start / 30) * 100))
+        },
+        "milestones": {
+            "started": True,
+            "25_percent": progress >= 25,
+            "50_percent": progress >= 50,
+            "75_percent": progress >= 75,
+            "completed": progress >= 100
+        }
+    }
+    
+    return analytics
 
 # ========== CAREER & JOB ROUTES ==========
 
