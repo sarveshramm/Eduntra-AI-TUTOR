@@ -294,6 +294,38 @@ async def get_chat_history(session_id: str, authorization: Optional[str] = Heade
     ).sort("timestamp", 1).to_list(100)
     return {"messages": messages}
 
+@api_router.get("/tutor/sessions")
+async def get_chat_sessions(authorization: Optional[str] = Header(None)):
+    user_data = await get_current_user(authorization)
+    
+    # Get unique sessions with latest message
+    pipeline = [
+        {"$match": {"user_id": user_data['user_id']}},
+        {"$sort": {"timestamp": -1}},
+        {"$group": {
+            "_id": "$session_id",
+            "last_message": {"$first": "$content"},
+            "last_timestamp": {"$first": "$timestamp"},
+            "message_count": {"$sum": 1}
+        }},
+        {"$sort": {"last_timestamp": -1}},
+        {"$limit": 20}
+    ]
+    
+    sessions = await db.chat_messages.aggregate(pipeline).to_list(20)
+    
+    # Format sessions
+    formatted_sessions = []
+    for session in sessions:
+        formatted_sessions.append({
+            "session_id": session['_id'],
+            "preview": session['last_message'][:100] if session['last_message'] else "New conversation",
+            "timestamp": session['last_timestamp'],
+            "message_count": session['message_count']
+        })
+    
+    return {"sessions": formatted_sessions}
+
 # ========== LEARNING PATH ROUTES ==========
 
 @api_router.post("/learning/create-path")
