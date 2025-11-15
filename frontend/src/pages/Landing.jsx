@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { ArrowRight, BookOpen, Bot, Briefcase, Video, Globe, Zap, Users, Award } from 'lucide-react';
-import Login from '../components/Auth/Login';
+import AccessibleLogin from '../components/Auth/AccessibleLogin';
 import Register from '../components/Auth/Register';
 
 const Landing = () => {
