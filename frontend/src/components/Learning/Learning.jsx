@@ -72,11 +72,17 @@ const Learning = () => {
     }
   };
 
-  const updateProgress = async (pathId, phaseIndex) => {
+  const startQuiz = (pathId, phase, phaseTitle) => {
+    setQuizData({ pathId, phase, phaseTitle });
+    setShowQuiz(true);
+  };
+
+  const handleQuizComplete = async () => {
+    const { pathId, phase } = quizData;
     const path = paths.find(p => p.id === pathId);
     const totalPhases = path.lessons?.length || 1;
-    const newProgress = Math.min(100, ((phaseIndex + 1) / totalPhases) * 100);
-    const completedPhases = Array.from({length: phaseIndex + 1}, (_, i) => i + 1);
+    const newProgress = Math.min(100, ((phase) / totalPhases) * 100);
+    const completedPhases = Array.from({length: phase}, (_, i) => i + 1);
     
     try {
       await api.put(`/learning/progress/${pathId}`, { 
@@ -85,7 +91,8 @@ const Learning = () => {
       });
       await saveProgressOffline(pathId, newProgress);
       setPaths(paths.map(p => p.id === pathId ? { ...p, progress: newProgress, completed_phases: completedPhases } : p));
-      toast.success('✅ Progress updated!');
+      setShowQuiz(false);
+      toast.success('🎉 Phase completed! Moving to next phase...');
     } catch (error) {
       toast.error('Failed to update progress');
     }
