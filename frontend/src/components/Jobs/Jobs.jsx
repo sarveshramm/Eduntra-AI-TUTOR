@@ -19,14 +19,29 @@ const Jobs = () => {
     fetchJobs();
   }, []);
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (showToast = false) => {
+    if (showToast) {
+      setLoading(true);
+      toast.info('🔄 Fetching latest opportunities...');
+    }
+    
     try {
       const [jobsRes, internshipsRes] = await Promise.all([
-        api.get('/jobs?job_type=job'),
-        api.get('/jobs?job_type=internship')
+        api.get('/jobs?job_type=job&location=India'),
+        api.get('/jobs?job_type=internship&location=India')
       ]);
       setJobs(jobsRes.data.jobs);
       setInternships(internshipsRes.data.jobs);
+      setJobsSource(jobsRes.data.source);
+      setLastUpdated(new Date());
+      
+      if (showToast) {
+        if (jobsRes.data.source === 'live') {
+          toast.success('✅ Latest jobs loaded from live sources!');
+        } else {
+          toast.info('ℹ️ Showing cached opportunities');
+        }
+      }
     } catch (error) {
       toast.error('Failed to fetch opportunities');
     } finally {
