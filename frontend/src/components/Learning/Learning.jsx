@@ -21,6 +21,8 @@ const Learning = () => {
   const [selectedPath, setSelectedPath] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizData, setQuizData] = useState({ pathId: null, phase: null, phaseTitle: '' });
   
   // RoadmapGPT questionnaire
   const [formData, setFormData] = useState({
