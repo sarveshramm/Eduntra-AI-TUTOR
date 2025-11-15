@@ -538,8 +538,26 @@ const AITutor = () => {
           <h2 className="text-2xl font-bold text-white mb-2">Your AI Tutor</h2>
           <p className="text-gray-400 mb-4">Ask me anything! I'm here to help you learn.</p>
           
-          {/* Voice Mode Toggle */}
-          <div className="flex items-center justify-center gap-4 mb-4">
+          {/* Action Buttons */}
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Button
+              onClick={() => setShowHistory(true)}
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+              data-testid="show-history-btn"
+            >
+              <History className="h-5 w-5 mr-2" />
+              History
+            </Button>
+            
+            <Button
+              onClick={startNewChat}
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+              data-testid="new-chat-btn"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              New Chat
+            </Button>
+            
             <Button
               onClick={toggleVoiceMode}
               className={`${
@@ -550,7 +568,7 @@ const AITutor = () => {
               data-testid="voice-mode-toggle"
             >
               <Mic className="h-5 w-5 mr-2" />
-              {voiceMode ? '🔴 Voice Mode ON' : '🎤 Voice Mode OFF'}
+              {voiceMode ? 'Voice ON' : 'Voice OFF'}
             </Button>
           </div>
 
