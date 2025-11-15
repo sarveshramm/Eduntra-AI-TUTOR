@@ -250,12 +250,16 @@ const Learning = () => {
                       return (
                         <div
                           key={lessonIdx}
-                          className={`bg-white/5 rounded-lg p-4 border-l-4 transition-all ${\n                            isCompleted ? 'border-green-500' : 'border-gray-600'\n                          }`}
+                          className={`bg-white/5 rounded-lg p-4 border-l-4 transition-all ${
+                            isCompleted ? 'border-green-500' : 'border-gray-600'
+                          }`}
                           data-testid={`lesson-${index}-${lessonIdx}`}
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-start gap-3 flex-1">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${\n                                isCompleted ? 'bg-green-500' : 'bg-gray-600'\n                              }`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                isCompleted ? 'bg-green-500' : 'bg-gray-600'
+                              }`}>
                                 {isCompleted ? (
                                   <CheckCircle className="h-5 w-5 text-white" />
                                 ) : (
