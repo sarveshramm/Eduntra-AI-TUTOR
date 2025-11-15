@@ -118,6 +118,18 @@ class Quiz(BaseModel):
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class QuizResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    quiz_id: str
+    path_id: str
+    phase: int
+    score: int
+    total_questions: int
+    answers: List[Dict[str, Any]]
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # ========== HELPER FUNCTIONS ==========
 
 def create_jwt_token(user_id: str, email: str, role: str) -> str:
