@@ -134,19 +134,44 @@ const Jobs = () => {
   return (
     <div className="space-y-6" data-testid="jobs-page">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2" style={{fontFamily: 'Space Grotesk'}}>Jobs & Internships</h1>
-          <p className="text-gray-400">Find opportunities that match your skills and interests</p>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-4xl font-bold text-white" style={{fontFamily: 'Space Grotesk'}}>Jobs & Internships</h1>
+            {jobsSource === 'live' && (
+              <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-xs font-semibold flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                LIVE
+              </span>
+            )}
+          </div>
+          <p className="text-gray-400">Real-time opportunities from multiple sources</p>
+          {lastUpdated && (
+            <p className="text-gray-500 text-sm mt-1">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </p>
+          )}
         </div>
-        <Button
-          onClick={getRecommendations}
-          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-          data-testid="recommend-btn"
-        >
-          <Star className="h-5 w-5 mr-2" />
-          Get Recommendations
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={() => fetchJobs(true)}
+            className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+            data-testid="refresh-btn"
+          >
+            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh Jobs
+          </Button>
+          <Button
+            onClick={getRecommendations}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            data-testid="recommend-btn"
+          >
+            <Star className="h-5 w-5 mr-2" />
+            AI Recommendations
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
