@@ -427,6 +427,94 @@ Make it {detail_level} and perfectly suited for {skill_level} level."""
     
     return doc
 
+def generate_fallback_roadmap(subject, skill_level, timeline):
+    """Generate comprehensive fallback roadmap"""
+    overview = {
+        "total_duration": timeline,
+        "total_phases": 4,
+        "estimated_hours": 60,
+        "difficulty": skill_level
+    }
+    
+    lessons = [
+        {
+            "phase": 1,
+            "title": f"Foundation & Fundamentals of {subject}",
+            "duration": "Week 1",
+            "objectives": [f"Understand core {subject} concepts", "Set up learning environment", "Complete first exercises"],
+            "topics": ["Basic terminology", "Core principles", "Getting started", "First hands-on practice"],
+            "description": f"Build a rock-solid foundation in {subject}. You'll learn the essential concepts, understand why they matter, and get hands-on practice with beginner-friendly exercises.",
+            "practice": f"Complete 5 beginner exercises in {subject}. Build your first mini-project to apply what you've learned.",
+            "resources": ["Official documentation", "Video tutorial series", "Interactive coding platform"],
+            "tools": ["VS Code or preferred editor", "Online playground", "Community forum"],
+            "common_mistakes": ["Rushing through basics", "Not practicing enough", "Skipping documentation"],
+            "success_metrics": ["Can explain core concepts", "Completed all basic exercises", "Built first project"],
+            "duration_minutes": 420
+        },
+        {
+            "phase": 2,
+            "title": f"Intermediate {subject} Skills",
+            "duration": "Week 2",
+            "objectives": [f"Master intermediate {subject} concepts", "Build practical projects", "Understand best practices"],
+            "topics": ["Advanced concepts", "Design patterns", "Problem-solving techniques", "Real-world applications"],
+            "description": f"Level up your {subject} skills with intermediate concepts. Learn industry best practices and build projects that showcase your growing expertise.",
+            "practice": f"Build 2-3 intermediate projects. Solve 15 coding challenges. Refactor your previous work.",
+            "resources": ["Advanced course", "Project-based tutorials", "GitHub repositories for reference"],
+            "tools": ["Testing frameworks", "Debugging tools", "Version control (Git)"],
+            "common_mistakes": ["Not following best practices", "Ignoring code quality", "Working in isolation"],
+            "success_metrics": ["Can solve intermediate problems", "Portfolio has 3 solid projects", "Understand design patterns"],
+            "duration_minutes": 540
+        },
+        {
+            "phase": 3,
+            "title": f"Advanced {subject} & Specialization",
+            "duration": "Week 3",
+            "objectives": [f"Master advanced {subject} topics", "Choose specialization area", "Build complex projects"],
+            "topics": ["Performance optimization", "Advanced patterns", "System design", "Specialized topics"],
+            "description": f"Dive deep into advanced {subject} topics. Choose your specialization area and become an expert in specific domains.",
+            "practice": f"Build 1 complex, production-ready project. Contribute to open-source. Optimize existing code for performance.",
+            "resources": ["Advanced books", "Research papers", "Expert blogs and talks"],
+            "tools": ["Profiling tools", "Advanced frameworks", "Cloud platforms"],
+            "common_mistakes": ["Trying to learn everything", "Not specializing", "Avoiding complex problems"],
+            "success_metrics": ["Can architect complex systems", "Expert in chosen specialization", "Production-ready project"],
+            "duration_minutes": 600
+        },
+        {
+            "phase": 4,
+            "title": f"Mastery & Real-World Application",
+            "duration": "Week 4",
+            "objectives": ["Apply skills in real-world scenarios", "Build capstone project", "Prepare for opportunities"],
+            "topics": ["Industry practices", "Interview preparation", "Portfolio building", "Continuous learning"],
+            "description": f"Transform your {subject} knowledge into marketable skills. Build an impressive capstone project and prepare for real opportunities.",
+            "practice": f"Build capstone project. Prepare resume and portfolio. Practice technical interviews. Network with professionals.",
+            "resources": ["Interview prep platforms", "Portfolio examples", "Networking communities"],
+            "tools": ["Portfolio website builder", "Interview prep tools", "LinkedIn"],
+            "common_mistakes": ["Poor portfolio presentation", "Not networking", "Stopping learning"],
+            "success_metrics": [f"Expert-level {subject} skills", "Impressive portfolio", "Ready for opportunities"],
+            "duration_minutes": 480
+        }
+    ]
+    
+    final_checklist = [
+        f"✅ Deep understanding of {subject} fundamentals",
+        "✅ Built 5+ projects showcasing various skills",
+        "✅ Can solve complex problems independently",
+        "✅ Portfolio ready to showcase to employers",
+        f"✅ Active in {subject} community",
+        "✅ Ready for technical interviews",
+        "✅ Continuous learning habit established"
+    ]
+    
+    next_steps = [
+        f"Explore advanced {subject} specializations",
+        "Contribute to major open-source projects",
+        "Start freelancing or apply for jobs",
+        "Mentor others learning {subject}",
+        "Stay updated with latest trends"
+    ]
+    
+    return lessons, overview, final_checklist, next_steps
+
 def generate_fallback_lessons(subject, skill_level):
     """Generate fallback lessons if AI fails"""
     base_lessons = [
