@@ -109,6 +109,20 @@ const AITutor = () => {
   // Load chat history on mount
   useEffect(() => {
     loadChatSessions();
+    
+    // Initialize speech synthesis voices
+    if ('speechSynthesis' in window) {
+      // Some browsers need this to load voices
+      window.speechSynthesis.getVoices();
+      
+      // Voice loading event
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = () => {
+          const voices = window.speechSynthesis.getVoices();
+          console.log('Available voices loaded:', voices.length);
+        };
+      }
+    }
   }, []);
 
   const loadChatSessions = async () => {
