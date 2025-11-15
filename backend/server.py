@@ -1191,6 +1191,125 @@ async def sync_upload(data: dict, authorization: Optional[str] = Header(None)):
 
 # ========== SEED DATA ==========
 
+async def fetch_real_time_jobs(job_type: str, location: str) -> List[Dict]:
+    """Fetch real-time jobs from multiple APIs"""
+    import aiohttp
+    import asyncio
+    
+    jobs = []
+    
+    try:
+        # Method 1: Remotive API (Remote Jobs - Free)
+        if job_type == 'job':
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.get('https://remotive.com/api/remote-jobs?limit=20', timeout=aiohttp.ClientTimeout(total=10)) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            for job in data.get('jobs', [])[:10]:
+                                jobs.append({
+                                    "id": str(uuid.uuid4()),
+                                    "title": job.get('title', 'Position Available'),
+                                    "company": job.get('company_name', 'Company'),
+                                    "location": job.get('candidate_required_location', location),
+                                    "type": "job",
+                                    "required_skills": job.get('tags', [])[:5],
+                                    "salary": job.get('salary', 'Competitive'),
+                                    "description": job.get('description', '')[:200] + '...',
+                                    "experience_level": job.get('job_type', 'Full-time'),
+                                    "url": job.get('url', ''),
+                                    "posted_date": job.get('publication_date', '')
+                                })
+                except Exception as e:
+                    logger.error(f"Remotive API error: {e}")
+        
+        # Method 2: GitHub Jobs Alternative - Arbeitnow (Free)
+        try:
+            async with aiohttp.ClientSession() as session:
+                category = 'internship' if job_type == 'internship' else 'tech'
+                async with session.get(f'https://arbeitnow.com/api/job-board-api?page=1', timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        for job in data.get('data', [])[:10]:
+                            jobs.append({
+                                "id": str(uuid.uuid4()),
+                                "title": job.get('title', 'Position'),
+                                "company": job.get('company_name', 'Company'),
+                                "location": job.get('location', location),
+                                "type": job_type,
+                                "required_skills": job.get('tags', [])[:5],
+                                "salary": "Competitive salary",
+                                "description": job.get('description', '')[:200] + '...',
+                                "experience_level": 'Entry to Mid',
+                                "url": job.get('url', ''),
+                                "posted_date": job.get('created_at', '')
+                            })
+        except Exception as e:
+            logger.error(f"Arbeitnow API error: {e}")
+        
+        # Method 3: AI-Generated Realistic Jobs based on trends
+        if len(jobs) < 5:
+            chat = LlmChat(
+                api_key=EMERGENT_LLM_KEY,
+                session_id="jobs_fetch",
+                system_message="You are a job market analyst. Generate realistic job listings."
+            ).with_model("openai", "gpt-4o")
+            
+            prompt = f"""Generate 10 realistic {job_type} listings for {location} market right now.
+
+Include trending roles in:
+- Technology (AI/ML, Web Dev, Data Science)
+- Digital Marketing
+- Business Development
+- Design (UI/UX)
+- Content Creation
+
+Return JSON array:
+[{{
+    "title": "Job title",
+    "company": "Real-sounding company name",
+    "location": "{location}",
+    "required_skills": ["skill1", "skill2", "skill3"],
+    "salary": "Realistic salary range in INR",
+    "description": "Brief 2-sentence description",
+    "experience_level": "Entry/Mid/Senior"
+}}]"""
+            
+            response = await chat.send_message(UserMessage(text=prompt))
+            
+            try:
+                import json
+                clean_response = response.strip()
+                if clean_response.startswith('```'):
+                    clean_response = clean_response.split('```')[1]
+                    if clean_response.startswith('json'):
+                        clean_response = clean_response[4:]
+                clean_response = clean_response.strip()
+                
+                ai_jobs = json.loads(clean_response)
+                for job in ai_jobs[:10]:
+                    jobs.append({
+                        "id": str(uuid.uuid4()),
+                        "title": job.get('title'),
+                        "company": job.get('company'),
+                        "location": job.get('location', location),
+                        "type": job_type,
+                        "required_skills": job.get('required_skills', []),
+                        "salary": job.get('salary'),
+                        "description": job.get('description'),
+                        "experience_level": job.get('experience_level'),
+                        "url": "",
+                        "posted_date": datetime.now(timezone.utc).isoformat()
+                    })
+            except Exception as e:
+                logger.error(f"AI job generation error: {e}")
+        
+        return jobs[:20]  # Return max 20 jobs
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch real-time jobs: {e}")
+        return []
+
 async def seed_jobs():
     mock_jobs = [
         {"id": str(uuid.uuid4()), "title": "Frontend Developer", "company": "TechCorp", "location": "Bangalore", "type": "job", "required_skills": ["React", "JavaScript", "CSS"], "salary": "₹6-10 LPA", "description": "Build modern web applications", "experience_level": "Entry"},
