@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
-import { Mic, Send, Volume2, Loader2, Bot, User } from 'lucide-react';
+import { Mic, Send, Volume2, Loader2, Bot, User, History, Plus, MessageSquare } from 'lucide-react';
 import api from '../../utils/api';
 import { toast } from 'sonner';
 import { saveChatOffline } from '../../utils/offlineStorage';
