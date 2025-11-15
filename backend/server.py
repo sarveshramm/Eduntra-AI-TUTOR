@@ -188,13 +188,20 @@ async def tutor_chat(data: dict, authorization: Optional[str] = Header(None)):
     
     message = data.get('message')
     session_id = data.get('session_id', 'default')
-    language = data.get('language', 'English')
+    detected_language = data.get('language', 'auto')
     
-    # Get chat history
+    # Get chat history for context
     history = await db.chat_messages.find(
         {"user_id": user_data['user_id'], "session_id": session_id}
     ).sort("timestamp", -1).limit(10).to_list(10)
     history.reverse()
+    
+    # Build conversation context
+    conversation_context = ""
+    if history:
+        for msg in history[-5:]:  # Last 5 messages for context
+            role = "Student" if msg['role'] == 'user' else "Tutor"
+            conversation_context += f"{role}: {msg['content']}\n"
     
     # Save user message
     user_msg = ChatMessage(
@@ -207,21 +214,62 @@ async def tutor_chat(data: dict, authorization: Optional[str] = Header(None)):
     user_msg_doc['timestamp'] = user_msg_doc['timestamp'].isoformat()
     await db.chat_messages.insert_one(user_msg_doc)
     
-    # Call GPT-4o
-    system_prompt = f"""You are an expert AI tutor for Eduntra AI platform. You help students learn effectively.
-    - Provide clear, educational explanations
-    - Use simple language and examples
-    - Encourage critical thinking
-    - Support students in their learning journey
-    - Respond in {language} language"""
+    # Enhanced system prompt for accuracy and language detection
+    system_prompt = """You are an expert AI tutor at Eduntra AI platform. Your role is to help students learn effectively and master concepts.
+
+CORE PRINCIPLES:
+1. **Language Matching**: ALWAYS respond in the EXACT SAME LANGUAGE the student uses. If they write in Hindi, respond in Hindi. If in Spanish, respond in Spanish. Detect and match their language automatically.
+
+2. **Accuracy**: Provide factually correct, up-to-date information. If unsure, acknowledge it and guide students to verified resources.
+
+3. **Clear Explanations**: 
+   - Break down complex topics into simple, digestible parts
+   - Use analogies and real-world examples
+   - Provide step-by-step explanations for problems
+
+4. **Educational Approach**:
+   - Ask guiding questions to encourage critical thinking
+   - Don't just give answers - help students understand WHY
+   - Adapt difficulty based on student's level
+   - Celebrate progress and encourage learning
+
+5. **Engagement**:
+   - Be friendly, patient, and encouraging
+   - Use appropriate examples for the student's age/level
+   - Make learning interactive and interesting
+
+6. **Subject Expertise**: You are knowledgeable in:
+   - Mathematics (all levels)
+   - Science (Physics, Chemistry, Biology)
+   - Programming & Computer Science
+   - Languages & Literature
+   - History & Social Studies
+   - Business & Economics
+   - And all other academic subjects
+
+Remember: Match the student's language, be accurate, and make learning enjoyable!"""
     
+    # Create enhanced prompt with context
+    if conversation_context:
+        enhanced_message = f"""Previous conversation context:
+{conversation_context}
+
+Current question: {message}
+
+Important: Respond in the SAME LANGUAGE as the current question. Provide accurate, educational responses that build on our conversation."""
+    else:
+        enhanced_message = f"""Student's question: {message}
+
+Important: Respond in the SAME LANGUAGE as this question. Provide accurate, clear educational explanations."""
+    
+    # Call GPT-4o with enhanced context
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=session_id,
         system_message=system_prompt
     ).with_model("openai", "gpt-4o")
     
-    user_message = UserMessage(text=message)
+    user_message = UserMessage(text=enhanced_message)
     response = await chat.send_message(user_message)
     
     # Save assistant message
