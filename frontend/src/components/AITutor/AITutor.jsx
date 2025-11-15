@@ -263,10 +263,8 @@ const AITutor = () => {
     setLoading(true);
 
     try {
-      // Save offline
       await saveChatOffline({ ...userMessage, session_id: sessionId });
 
-      // Auto-detect language (the backend will handle matching)
       const response = await api.post('/tutor/chat', {
         message: currentInput,
         session_id: sessionId,
@@ -282,17 +280,19 @@ const AITutor = () => {
       setMessages(prev => [...prev, assistantMessage]);
       await saveChatOffline({ ...assistantMessage, session_id: sessionId });
 
-      // Speak response
-      speakText(response.data.response);
+      // Speak response only in voice mode
+      if (voiceMode) {
+        speakText(response.data.response);
+      }
       
-      toast.success('Response received!', { duration: 1000 });
+      if (!voiceMode) {
+        toast.success('Response received!', { duration: 1000 });
+      }
     } catch (error) {
       toast.error('Failed to get response. Please try again.');
       console.error('Chat error:', error);
-      
-      // Remove the user message if request failed
       setMessages(prev => prev.filter(msg => msg.timestamp !== userMessage.timestamp));
-      setInput(currentInput); // Restore the input
+      setInput(currentInput);
     } finally {
       setLoading(false);
     }
