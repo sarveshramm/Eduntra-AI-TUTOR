@@ -258,24 +258,45 @@ async def create_learning_path(data: dict, authorization: Optional[str] = Header
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=f"learning_{user_data['user_id']}",
-        system_message="You are an education curriculum designer."
+        system_message="You are an expert curriculum designer specializing in personalized learning paths."
     ).with_model("openai", "gpt-4o")
     
-    prompt = f"""Create a structured learning path for {subject} at {skill_level} level.
-    Return a JSON array of 10 lessons with: title, description, duration_minutes, topics[]
-    Format: {{"lessons": [{{"title": "", "description": "", "duration_minutes": 30, "topics": []}}]}}"""
+    prompt = f"""Create a comprehensive learning roadmap for {subject} at {skill_level} level.
+
+Generate 8-10 progressive lessons with:
+- title: Lesson name
+- description: What student will learn (2-3 sentences)
+- duration_minutes: Realistic time needed (30-90 minutes)
+- week: Which week to complete (Week 1, Week 2, etc.)
+- topics: 3-5 specific topics covered
+- resources: 2-3 learning resources or tools
+- practice: Hands-on practice activity
+
+Return ONLY valid JSON, no markdown:
+{{"lessons": [{{"title": "Introduction to {subject}", "description": "Learn the basics", "duration_minutes": 45, "week": "Week 1", "topics": ["Topic 1", "Topic 2"], "resources": ["Resource 1"], "practice": "Build a simple project"}}]}}"""
     
     response = await chat.send_message(UserMessage(text=prompt))
     
     try:
         import json
-        lessons_data = json.loads(response)
+        # Clean response
+        clean_response = response.strip()
+        if clean_response.startswith('```'):
+            clean_response = clean_response.split('```')[1]
+            if clean_response.startswith('json'):
+                clean_response = clean_response[4:]
+        clean_response = clean_response.strip()
+        
+        lessons_data = json.loads(clean_response)
         lessons = lessons_data.get('lessons', [])
-    except:
-        lessons = [
-            {"title": f"{subject} Lesson {i+1}", "description": "Interactive lesson", "duration_minutes": 30, "topics": []}
-            for i in range(10)
-        ]
+        
+        if not lessons or len(lessons) == 0:
+            raise ValueError("No lessons returned")
+            
+    except Exception as e:
+        logger.error(f"Failed to parse learning path: {e}")
+        # Generate fallback lessons
+        lessons = generate_fallback_lessons(subject, skill_level)
     
     learning_path = LearningPath(
         user_id=user_data['user_id'],
@@ -288,6 +309,85 @@ async def create_learning_path(data: dict, authorization: Optional[str] = Header
     await db.learning_paths.insert_one(doc)
     
     return learning_path.model_dump()
+
+def generate_fallback_lessons(subject, skill_level):
+    """Generate fallback lessons if AI fails"""
+    base_lessons = [
+        {
+            "title": f"Introduction to {subject}",
+            "description": f"Learn the fundamentals and core concepts of {subject}. Understand why {subject} is important and what you can achieve with it.",
+            "duration_minutes": 45,
+            "week": "Week 1",
+            "topics": ["Basic concepts", "Key terminology", "Overview of applications"],
+            "resources": ["Official documentation", "Beginner tutorial videos"],
+            "practice": "Complete introductory exercises"
+        },
+        {
+            "title": f"Core Principles of {subject}",
+            "description": f"Deep dive into the fundamental principles that power {subject}. Build a strong foundation for advanced topics.",
+            "duration_minutes": 60,
+            "week": "Week 1",
+            "topics": ["Core concepts", "Essential principles", "Best practices"],
+            "resources": ["Interactive tutorials", "Practice problems"],
+            "practice": "Solve 10 basic problems"
+        },
+        {
+            "title": f"Practical Applications",
+            "description": f"Apply your {subject} knowledge to real-world scenarios. Learn through hands-on projects and examples.",
+            "duration_minutes": 75,
+            "week": "Week 2",
+            "topics": ["Real-world use cases", "Common patterns", "Practical examples"],
+            "resources": ["Project templates", "Code examples"],
+            "practice": "Build your first mini-project"
+        },
+        {
+            "title": f"Intermediate Techniques",
+            "description": f"Level up your {subject} skills with intermediate concepts and techniques used by professionals.",
+            "duration_minutes": 60,
+            "week": "Week 2",
+            "topics": ["Advanced concepts", "Optimization", "Common patterns"],
+            "resources": ["Advanced tutorials", "Documentation"],
+            "practice": "Complete intermediate challenges"
+        },
+        {
+            "title": f"Tools and Ecosystem",
+            "description": f"Explore the tools, libraries, and frameworks that make working with {subject} easier and more efficient.",
+            "duration_minutes": 50,
+            "week": "Week 3",
+            "topics": ["Popular tools", "Libraries", "Development environment"],
+            "resources": ["Tool documentation", "Setup guides"],
+            "practice": "Set up professional workflow"
+        },
+        {
+            "title": f"Building Real Projects",
+            "description": f"Put everything together by building complete, real-world projects using {subject}.",
+            "duration_minutes": 90,
+            "week": "Week 3",
+            "topics": ["Project planning", "Implementation", "Testing"],
+            "resources": ["Project ideas", "Code repositories"],
+            "practice": "Build a portfolio project"
+        },
+        {
+            "title": f"Best Practices & Patterns",
+            "description": f"Learn industry best practices, design patterns, and professional standards for {subject}.",
+            "duration_minutes": 60,
+            "week": "Week 4",
+            "topics": ["Code quality", "Design patterns", "Industry standards"],
+            "resources": ["Style guides", "Best practice docs"],
+            "practice": "Refactor previous projects"
+        },
+        {
+            "title": f"Advanced Topics & Mastery",
+            "description": f"Master advanced {subject} techniques and prepare for professional-level work.",
+            "duration_minutes": 75,
+            "week": "Week 4",
+            "topics": ["Advanced techniques", "Performance", "Scalability"],
+            "resources": ["Advanced courses", "Research papers"],
+            "practice": "Complete capstone project"
+        }
+    ]
+    
+    return base_lessons
 
 @api_router.get("/learning/my-paths")
 async def get_my_paths(authorization: Optional[str] = Header(None)):
