@@ -86,6 +86,7 @@ const AITutor = () => {
       timestamp: new Date().toISOString()
     };
 
+    const currentInput = input;
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setLoading(true);
@@ -94,10 +95,11 @@ const AITutor = () => {
       // Save offline
       await saveChatOffline({ ...userMessage, session_id: sessionId });
 
+      // Auto-detect language (the backend will handle matching)
       const response = await api.post('/tutor/chat', {
-        message: input,
+        message: currentInput,
         session_id: sessionId,
-        language: 'English'
+        language: 'auto'
       });
 
       const assistantMessage = {
@@ -111,9 +113,15 @@ const AITutor = () => {
 
       // Speak response
       speakText(response.data.response);
+      
+      toast.success('Response received!', { duration: 1000 });
     } catch (error) {
-      toast.error('Failed to get response');
+      toast.error('Failed to get response. Please try again.');
       console.error('Chat error:', error);
+      
+      // Remove the user message if request failed
+      setMessages(prev => prev.filter(msg => msg.timestamp !== userMessage.timestamp));
+      setInput(currentInput); // Restore the input
     } finally {
       setLoading(false);
     }
