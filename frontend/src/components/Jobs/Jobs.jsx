@@ -12,6 +12,8 @@ const Jobs = () => {
   const [internships, setInternships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('jobs');
+  const [jobsSource, setJobsSource] = useState('cached');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     fetchJobs();
