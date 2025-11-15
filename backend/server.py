@@ -1056,16 +1056,21 @@ def generate_fallback_careers(interests, skills):
     return fallback_careers[:5]
 
 @api_router.get("/jobs")
-async def get_jobs(job_type: str = 'job', authorization: Optional[str] = Header(None)):
+async def get_jobs(job_type: str = 'job', location: str = 'India', authorization: Optional[str] = Header(None)):
     user_data = await get_current_user(authorization)
     
-    # Check if jobs exist, if not seed them
-    count = await db.jobs.count_documents({})
-    if count == 0:
-        await seed_jobs()
+    # Fetch real-time jobs from multiple sources
+    real_time_jobs = await fetch_real_time_jobs(job_type, location)
     
-    jobs = await db.jobs.find({"type": job_type}, {"_id": 0}).to_list(100)
-    return {"jobs": jobs}
+    # If API fails, fall back to cached/mock data
+    if not real_time_jobs:
+        count = await db.jobs.count_documents({})
+        if count == 0:
+            await seed_jobs()
+        jobs = await db.jobs.find({"type": job_type}, {"_id": 0}).to_list(100)
+        return {"jobs": jobs, "source": "cached"}
+    
+    return {"jobs": real_time_jobs, "source": "live"}
 
 @api_router.post("/jobs/recommend")
 async def recommend_jobs(authorization: Optional[str] = Header(None)):
