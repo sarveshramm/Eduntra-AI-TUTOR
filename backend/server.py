@@ -454,10 +454,14 @@ Make it {detail_level} and perfectly suited for {skill_level} level."""
     doc['final_goal'] = final_goal
     doc['daily_time'] = daily_time
     doc['timeline'] = timeline
+    doc['completed_phases'] = []
     
-    await db.learning_paths.insert_one(doc)
+    # Insert and return without _id
+    result = await db.learning_paths.insert_one(doc)
     
-    return doc
+    # Return clean document without _id
+    return_doc = {k: v for k, v in doc.items() if k != '_id'}
+    return return_doc
 
 def generate_fallback_roadmap(subject, skill_level, timeline):
     """Generate comprehensive fallback roadmap"""
