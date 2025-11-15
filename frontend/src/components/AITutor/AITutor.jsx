@@ -103,6 +103,31 @@ const AITutor = () => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const startListening = () => {
+    if (!recognitionRef.current) {
+      toast.error('Voice recognition not supported');
+      return;
+    }
+
+    try {
+      if (isListening) {
+        recognitionRef.current.stop();
+      }
+      recognitionRef.current.start();
+      setIsListening(true);
+      setInput(''); // Clear input when starting to listen
+    } catch (error) {
+      console.error('Failed to start listening:', error);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
   const handleVoiceInput = () => {
     if (!recognitionRef.current) {
       toast.error('Voice recognition not supported');
@@ -110,25 +135,115 @@ const AITutor = () => {
     }
 
     if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
+      stopListening();
     } else {
-      recognitionRef.current.start();
-      setIsListening(true);
+      startListening();
+    }
+  };
+
+  const toggleVoiceMode = () => {
+    const newVoiceMode = !voiceMode;
+    setVoiceMode(newVoiceMode);
+    
+    if (newVoiceMode) {
+      toast.success('🎤 Voice Mode Activated - Hands-free conversation enabled!');
+      // Start listening immediately in voice mode
+      setTimeout(() => startListening(), 500);
+    } else {
+      toast.info('Voice Mode Deactivated');
+      stopListening();
+      // Cancel any ongoing speech
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+      setIsSpeaking(false);
     }
   };
 
   const speakText = (text) => {
     if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+      
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
+      utterance.rate = 0.95;
       utterance.pitch = 1;
       utterance.volume = 1;
+      utteranceRef.current = utterance;
       
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        stopListening(); // Stop listening while speaking
+      };
+      
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        utteranceRef.current = null;
+        
+        // CRITICAL: Auto re-enter listening mode in voice mode
+        if (voiceMode && !loading) {
+          setTimeout(() => {
+            startListening();
+          }, 500);
+        }
+      };
+      
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        utteranceRef.current = null;
+      };
       
       window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const sendVoiceMessage = async (messageText) => {
+    if (!messageText.trim() || loading) return;
+
+    const userMessage = {
+      role: 'user',
+      content: messageText,
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      await saveChatOffline({ ...userMessage, session_id: sessionId });
+
+      const response = await api.post('/tutor/chat', {
+        message: messageText,
+        session_id: sessionId,
+        language: 'auto'
+      });
+
+      const assistantMessage = {
+        role: 'assistant',
+        content: response.data.response,
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+      await saveChatOffline({ ...assistantMessage, session_id: sessionId });
+
+      // Speak response (will auto-trigger listening after speaking in voice mode)
+      if (voiceMode) {
+        speakText(response.data.response);
+      }
+      
+    } catch (error) {
+      toast.error('Failed to get response. Please try again.');
+      console.error('Chat error:', error);
+      setMessages(prev => prev.filter(msg => msg.timestamp !== userMessage.timestamp));
+      
+      // Restart listening in voice mode after error
+      if (voiceMode) {
+        setTimeout(() => startListening(), 1000);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
