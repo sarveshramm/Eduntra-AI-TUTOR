@@ -103,6 +103,24 @@ const AITutor = () => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Stop listening
+      if (recognitionRef.current && isListening) {
+        recognitionRef.current.stop();
+      }
+      // Stop speaking
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+      // Clear timers
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+    };
+  }, []);
+
   const startListening = () => {
     if (!recognitionRef.current) {
       toast.error('Voice recognition not supported');
