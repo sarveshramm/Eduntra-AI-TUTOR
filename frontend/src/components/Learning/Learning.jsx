@@ -219,41 +219,105 @@ const Learning = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
           {paths.map((path, index) => (
-            <Card key={path.id} className="glass-effect card-hover" data-testid={`path-${index}`}>
+            <Card key={path.id} className="glass-effect" data-testid={`path-${index}`}>
               <CardHeader>
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between mb-4">
                   <div>
-                    <CardTitle className="text-white text-xl">{path.subject}</CardTitle>
+                    <CardTitle className="text-white text-2xl mb-1">{path.subject}</CardTitle>
                     <CardDescription className="text-gray-400">
-                      {path.lessons?.length || 0} lessons
+                      {path.lessons?.length || 0} lessons • Estimated 4 weeks
                     </CardDescription>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-green-400">{path.progress}%</div>
+                    <div className="text-3xl font-bold text-green-400">{path.progress}%</div>
                     <div className="text-xs text-gray-400">Complete</div>
                   </div>
                 </div>
+                <Progress value={path.progress} className="h-2" />
               </CardHeader>
               <CardContent className="space-y-4">
-                <Progress value={path.progress} className="h-2" />
-                
-                <div className="flex gap-2">
+                {/* Roadmap Timeline */}
+                <div>
+                  <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-blue-400" />
+                    Learning Roadmap
+                  </h4>
+                  <div className="space-y-3">
+                    {path.lessons && path.lessons.map((lesson, lessonIdx) => {
+                      const isCompleted = (lessonIdx + 1) * (100 / path.lessons.length) <= path.progress;
+                      return (
+                        <div
+                          key={lessonIdx}
+                          className={`bg-white/5 rounded-lg p-4 border-l-4 transition-all ${\n                            isCompleted ? 'border-green-500' : 'border-gray-600'\n                          }`}
+                          data-testid={`lesson-${index}-${lessonIdx}`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-start gap-3 flex-1">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${\n                                isCompleted ? 'bg-green-500' : 'bg-gray-600'\n                              }`}>
+                                {isCompleted ? (
+                                  <CheckCircle className="h-5 w-5 text-white" />
+                                ) : (
+                                  <span className="text-white text-sm font-bold">{lessonIdx + 1}</span>
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <h5 className="text-white font-semibold">{lesson.title}</h5>
+                                <p className="text-gray-400 text-sm mt-1">{lesson.description}</p>
+                                
+                                {/* Topics */}
+                                {lesson.topics && lesson.topics.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {lesson.topics.slice(0, 3).map((topic, topicIdx) => (
+                                      <span key={topicIdx} className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-md">
+                                        {topic}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right ml-4">
+                              <div className="text-xs text-gray-400">{lesson.week || `Week ${Math.ceil((lessonIdx + 1) / 2)}`}</div>
+                              <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
+                                <Clock className="h-3 w-3" />
+                                {lesson.duration_minutes || 45}min
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Practice Activity */}
+                          {lesson.practice && (
+                            <div className="mt-3 bg-purple-500/10 border border-purple-500/20 rounded-md p-2">
+                              <p className="text-xs text-purple-300">
+                                <strong>Practice:</strong> {lesson.practice}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-4">
                   <Button
                     onClick={() => updateProgress(path.id, Math.min(100, path.progress + 10))}
-                    className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400"
+                    className="flex-1 bg-gradient-to-r from-green-500 to-blue-500"
                     data-testid={`progress-btn-${index}`}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Mark Progress
+                    Mark Lesson Complete
                   </Button>
                   <Button
                     variant="outline"
                     className="border-white/10 text-white"
                     data-testid={`view-btn-${index}`}
                   >
-                    View Details
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    View Analytics
                   </Button>
                 </div>
               </CardContent>
