@@ -586,15 +586,21 @@ const Learning = () => {
                           </div>
                         </div>
                         
-                        {!isCompleted && (
+                        {!isCompleted && isCurrent && (
                           <Button
-                            onClick={() => updateProgress(path.id, lessonIdx)}
-                            className="w-full mt-3 bg-gradient-to-r from-green-500 to-blue-500"
-                            data-testid={`complete-phase-${index}-${lessonIdx}`}
+                            onClick={() => startQuiz(path.id, lesson.phase, lesson.title)}
+                            className="w-full mt-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                            data-testid={`quiz-phase-${index}-${lessonIdx}`}
                           >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Mark Phase {lesson.phase} Complete
+                            <Brain className="h-5 w-5 mr-2" />
+                            Take Quiz to Complete Phase {lesson.phase}
                           </Button>
+                        )}
+                        {isCompleted && (
+                          <div className="w-full mt-3 bg-green-500/20 border border-green-500/30 rounded-lg p-3 text-center">
+                            <CheckCircle className="h-5 w-5 inline mr-2 text-green-400" />
+                            <span className="text-green-400 font-semibold">Phase Completed ✓</span>
+                          </div>
                         )}
                       </div>
                     );
