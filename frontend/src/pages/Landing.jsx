@@ -52,7 +52,7 @@ const Landing = () => {
               ×
             </button>
             {authMode === 'login' ? (
-              <Login onToggle={() => setAuthMode('register')} />
+              <AccessibleLogin onToggle={() => setAuthMode('register')} />
             ) : (
               <Register onToggle={() => setAuthMode('login')} />
             )}
