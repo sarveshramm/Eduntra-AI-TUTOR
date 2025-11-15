@@ -22,30 +22,82 @@ const AITutor = () => {
   const utteranceRef = useRef(null);
   const silenceTimerRef = useRef(null);
 
-  // Initialize Speech Recognition
+  // Initialize Speech Recognition with continuous mode support
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
+      recognitionRef.current.continuous = true; // Enable continuous listening
+      recognitionRef.current.interimResults = true; // Get interim results for better UX
 
       recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        setIsListening(false);
+        const results = event.results;
+        const lastResult = results[results.length - 1];
+        const transcript = lastResult[0].transcript;
+        
+        // Only process final results
+        if (lastResult.isFinal) {
+          setInput(transcript);
+          
+          // If in voice mode, automatically send the message
+          if (voiceMode) {
+            setIsListening(false);
+            // Small delay to ensure state updates
+            setTimeout(() => {
+              sendVoiceMessage(transcript);
+            }, 100);
+          } else {
+            setIsListening(false);
+          }
+        } else {
+          // Show interim results in real-time
+          setInput(transcript);
+        }
+        
+        // Reset silence timer on speech
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+        
+        // Set new silence timer (2 seconds of silence = stop listening)
+        silenceTimerRef.current = setTimeout(() => {
+          if (voiceMode && isListening) {
+            recognitionRef.current?.stop();
+          }
+        }, 2000);
       };
 
-      recognitionRef.current.onerror = () => {
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
         setIsListening(false);
-        toast.error('Voice recognition error');
+        
+        // Don't show error for normal stops
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          toast.error('Voice recognition error: ' + event.error);
+        }
+        
+        // Restart listening in voice mode if error occurred
+        if (voiceMode && event.error === 'no-speech') {
+          setTimeout(() => startListening(), 500);
+        }
       };
 
       recognitionRef.current.onend = () => {
         setIsListening(false);
+        
+        // Auto-restart listening in voice mode if not speaking
+        if (voiceMode && !isSpeaking && !loading) {
+          setTimeout(() => startListening(), 300);
+        }
       };
     }
-  }, []);
+    
+    return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+    };
+  }, [voiceMode, isSpeaking, loading]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
