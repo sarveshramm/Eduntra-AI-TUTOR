@@ -231,10 +231,34 @@ const AITutor = () => {
   return (
     <div className="h-full flex flex-col" data-testid="ai-tutor">
       {/* Avatar Section */}
-      <div className="glass-effect rounded-2xl p-6 mb-6 text-center">
+      <div className="glass-effect rounded-2xl p-6 mb-6">
         <AvatarAnimation />
-        <h2 className="text-2xl font-bold text-white mb-2">Your AI Tutor</h2>
-        <p className="text-gray-400">Ask me anything! I'm here to help you learn.</p>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-2">Your AI Tutor</h2>
+          <p className="text-gray-400 mb-4">Ask me anything! I'm here to help you learn.</p>
+          
+          {showInfo && messages.length === 0 && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-left">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-blue-400">✨</span>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-white font-semibold mb-1">Smart Language Detection</h4>
+                  <p className="text-sm text-gray-300">
+                    I automatically detect and respond in your language! Type in English, Hindi, Spanish, or any other language, and I'll match it.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowInfo(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Chat Messages */}
