@@ -241,8 +241,29 @@ const AITutor = () => {
         <div className="space-y-4" data-testid="chat-messages">
           {messages.length === 0 && (
             <div className="text-center py-12">
-              <Bot className="h-16 w-16 mx-auto mb-4 text-green-400" />
-              <p className="text-gray-400 text-lg">Start a conversation to begin learning!</p>
+              <Bot className="h-16 w-16 mx-auto mb-4 text-green-400 animate-pulse" />
+              <h3 className="text-2xl font-bold text-white mb-2">Ready to Learn?</h3>
+              <p className="text-gray-400 text-lg mb-4">Ask me anything in any language!</p>
+              <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
+                <button 
+                  onClick={() => setInput("What is photosynthesis?")}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-gray-300 transition-all"
+                >
+                  What is photosynthesis?
+                </button>
+                <button 
+                  onClick={() => setInput("Explain Newton's laws")}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-gray-300 transition-all"
+                >
+                  Explain Newton's laws
+                </button>
+                <button 
+                  onClick={() => setInput("How do I learn Python?")}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-gray-300 transition-all"
+                >
+                  How do I learn Python?
+                </button>
+              </div>
             </div>
           )}
           
@@ -252,8 +273,8 @@ const AITutor = () => {
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
               data-testid={`message-${index}`}
             >
-              <div className={`flex items-start gap-3 max-w-[80%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+              <div className={`flex items-start gap-3 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg ${
                   msg.role === 'user' 
                     ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
                     : 'bg-gradient-to-r from-green-500 to-blue-500'
@@ -261,10 +282,21 @@ const AITutor = () => {
                   {msg.role === 'user' ? <User className="h-5 w-5 text-white" /> : <Bot className="h-5 w-5 text-white" />}
                 </div>
                 <div className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'}>
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                  <p className="text-xs opacity-60 mt-2">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
-                  </p>
+                  <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <p className="text-xs opacity-60">
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    {msg.role === 'assistant' && (
+                      <button
+                        onClick={() => speakText(msg.content)}
+                        className="text-xs opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1"
+                        title="Read aloud"
+                      >
+                        <Volume2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -273,12 +305,18 @@ const AITutor = () => {
           {loading && (
             <div className="flex justify-start animate-fadeIn">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-green-500 to-blue-500">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-r from-green-500 to-blue-500 animate-pulse">
                   <Bot className="h-5 w-5 text-white" />
                 </div>
-                <div className="chat-bubble-assistant flex items-center gap-2">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Thinking...</span>
+                <div className="chat-bubble-assistant">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                    </div>
+                    <span className="text-sm text-gray-300">Crafting your answer...</span>
+                  </div>
                 </div>
               </div>
             </div>
