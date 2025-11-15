@@ -576,44 +576,59 @@ const AITutor = () => {
 
       {/* Input Section */}
       <form onSubmit={sendMessage} className="glass-effect rounded-2xl p-4">
+        {voiceMode && isListening && input && (
+          <div className="mb-3 bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+            <p className="text-xs text-green-400 mb-1">🎤 You said:</p>
+            <p className="text-white">{input}</p>
+          </div>
+        )}
+        
         <div className="flex gap-2">
-          <Button
-            type="button"
-            onClick={handleVoiceInput}
-            className={`${
-              isListening 
-                ? 'bg-red-500 hover:bg-red-600' 
-                : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-            }`}
-            data-testid="voice-input-btn"
-          >
-            {isListening ? (
-              <div className="voice-wave">
-                <span></span><span></span><span></span><span></span><span></span>
-              </div>
-            ) : (
-              <Mic className="h-5 w-5" />
-            )}
-          </Button>
+          {!voiceMode && (
+            <Button
+              type="button"
+              onClick={handleVoiceInput}
+              className={`${
+                isListening 
+                  ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                  : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
+              }`}
+              data-testid="voice-input-btn"
+            >
+              {isListening ? (
+                <div className="voice-wave">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+              ) : (
+                <Mic className="h-5 w-5" />
+              )}
+            </Button>
+          )}
           
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me anything..."
+            placeholder={voiceMode ? "Voice Mode Active - Speak to chat..." : "Ask me anything..."}
             className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-gray-500"
-            disabled={loading}
+            disabled={loading || (voiceMode && isListening)}
             data-testid="chat-input"
           />
           
           <Button
             type="submit"
-            disabled={loading || !input.trim()}
+            disabled={loading || !input.trim() || voiceMode}
             className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
             data-testid="send-message-btn"
           >
             <Send className="h-5 w-5" />
           </Button>
         </div>
+        
+        {voiceMode && (
+          <p className="text-xs text-center text-gray-400 mt-2">
+            💡 Tip: Speak clearly and pause when done. I'll respond and listen again automatically!
+          </p>
+        )}
       </form>
     </div>
   );
