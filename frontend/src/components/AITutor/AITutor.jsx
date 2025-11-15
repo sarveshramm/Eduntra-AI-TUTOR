@@ -407,16 +407,69 @@ const AITutor = () => {
           <h2 className="text-2xl font-bold text-white mb-2">Your AI Tutor</h2>
           <p className="text-gray-400 mb-4">Ask me anything! I'm here to help you learn.</p>
           
-          {showInfo && messages.length === 0 && (
+          {/* Voice Mode Toggle */}
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <Button
+              onClick={toggleVoiceMode}
+              className={`${
+                voiceMode 
+                  ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 animate-pulse' 
+                  : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600'
+              }`}
+              data-testid="voice-mode-toggle"
+            >
+              <Mic className="h-5 w-5 mr-2" />
+              {voiceMode ? '🔴 Voice Mode ON' : '🎤 Voice Mode OFF'}
+            </Button>
+          </div>
+
+          {/* Voice Mode Status */}
+          {voiceMode && (
+            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                {isListening && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-green-400 font-semibold">🎤 Listening...</span>
+                  </div>
+                )}
+                {isSpeaking && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+                    <span className="text-blue-400 font-semibold">🔊 Speaking...</span>
+                  </div>
+                )}
+                {loading && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
+                    <span className="text-yellow-400 font-semibold">💭 Thinking...</span>
+                  </div>
+                )}
+                {!isListening && !isSpeaking && !loading && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                    <span className="text-gray-400 font-semibold">⏸️ Ready</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-300">
+                Hands-free mode: Speak naturally, I'll respond and listen again automatically
+              </p>
+            </div>
+          )}
+          
+          {showInfo && messages.length === 0 && !voiceMode && (
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-left">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
                   <span className="text-blue-400">✨</span>
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-white font-semibold mb-1">Smart Language Detection</h4>
+                  <h4 className="text-white font-semibold mb-1">Smart Features</h4>
                   <p className="text-sm text-gray-300">
-                    I automatically detect and respond in your language! Type in English, Hindi, Spanish, or any other language, and I'll match it.
+                    • Auto language detection<br/>
+                    • Voice Mode for hands-free learning<br/>
+                    • Continuous conversation flow
                   </p>
                 </div>
                 <button 
