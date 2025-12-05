@@ -1,4 +1,5 @@
 # 🎓 Eduntra AI
+https://ailearn-hub-76.emergent.host/
 ### Personalized Learning and Career Guidance for Every Student
 
 Eduntra AI is an inclusive AI-powered education and career guidance platform designed to support students with personalized learning, accessible content, and real-time academic insights. Built to bridge the education gap in rural and underserved communities, Eduntra AI offers 24/7 virtual mentoring, supports over *19,000 languages, and can function even in **low internet or offline environments*.
