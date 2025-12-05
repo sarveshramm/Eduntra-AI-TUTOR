@@ -85,7 +85,8 @@ To make quality education & career guidance accessible to every learner —
 ---
 
 ## 🚀 Live 
-> Eduntra AI — AI-powered personalized education & career guidance platform. Live demo available at https://ailearn-hub-76.emergent.host/
+> Eduntra AI — AI-powered personalized education & career guidance platform
+>  https://ailearn-hub-76.emergent.host/
 ---
 
 ## 🤝 Contributing
